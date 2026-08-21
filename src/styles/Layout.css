@@ -1,0 +1,3 @@
+.lab-content {
+  margin-inline-start: var(--cui-sidebar-narrow-width, 4rem);
+}

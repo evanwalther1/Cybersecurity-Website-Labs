@@ -6,11 +6,13 @@ import {
   CSidebarNav,
   CNavItem,
   CNavTitle,
+  CNavLink,
   CBadge,
   CNavGroup,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import { cilSoccer, cilHome, cilApps } from "@coreui/icons";
+import { NavLink } from "react-router-dom";
 
 const Sidebar = () => {
   return (
@@ -55,16 +57,20 @@ const Sidebar = () => {
       </CSidebarHeader>
 
       <CSidebarNav>
-        <CNavItem href="#">
-          <CIcon customClassName={"nav-icon"} icon={cilHome} />
-          Home
+        <CNavItem>
+          <CNavLink as={NavLink} to="/home">
+            <CIcon customClassName={"nav-icon"} icon={cilHome} />
+            Home
+          </CNavLink>
         </CNavItem>
         <CNavTitle>Labs</CNavTitle>
-        <CNavItem href="#">
-          <span className="nav-icon">
-            <span className="nav-icon-bullet"></span>
-          </span>{" "}
-          Lab 1
+        <CNavItem>
+          <CNavLink as={NavLink} to="/lab1">
+            <span className="nav-icon">
+              <span className="nav-icon-bullet"></span>
+            </span>{" "}
+            Lab 1
+          </CNavLink>
         </CNavItem>
         <CNavItem href="#">
           <span className="nav-icon">

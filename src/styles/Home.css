@@ -1,0 +1,42 @@
+.home-page {
+  padding: 3rem 1.5rem 4rem;
+  max-width: 75rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.home-intro {
+  margin-bottom: 2.5rem;
+}
+
+.home-intro p {
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.lab-card-icon {
+  display: block;
+  margin: 0 auto 1rem;
+}
+
+.home-lab-grid > *:nth-child(1) .lab-card-icon {
+  color: #4dabf7;
+}
+.home-lab-grid > *:nth-child(2) .lab-card-icon {
+  color: #339af0;
+}
+.home-lab-grid > *:nth-child(3) .lab-card-icon {
+  color: #1c7ed6;
+}
+.home-lab-grid > *:nth-child(4) .lab-card-icon {
+  color: #1864ab;
+}
+.home-lab-grid > *:nth-child(5) .lab-card-icon {
+  color: #e8590c;
+}
+.home-lab-grid > *:nth-child(6) .lab-card-icon {
+  color: #c92a2a;
+}
+.home-lab-grid > *:nth-child(7) .lab-card-icon {
+  color: #862e2e;
+}
