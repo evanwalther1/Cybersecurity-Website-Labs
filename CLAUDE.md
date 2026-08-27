@@ -44,3 +44,33 @@ Lab 4:
 Lab 5:
 Lab 6:
 Lab 7:
+
+## Lab1 info
+
+// //Best Response
+// //Pure Nash Equilibrium
+// //Mixed Nash Equilibrium
+// //Maxmin
+// //Minmax
+
+// //Best Response
+// What is the best response to (D _ S1) -> (A _ S2)
+// What is the best response to (D _ S2) -> (A _ S1)
+
+// //Pure Nash Equilibrium (Where the game is in a stable state in which each player chooses a singe specific action,
+// //pure strategy, no player wants to change their choice
+// What is the Pure Nash Equilibrium in this game (might want to rephrase this) -> There is no pure N.E
+
+// //Mixed Nash Equilibrium
+// What is the Mixed Nash Equilibrium? For the attacker
+// e.x with payoff matrix different numbers than normal
+// (D _ S1) -> -3q + (1-q) = -4q + 1
+// (D _ S2) -> 2q - 2(1-q) = 4q-2
+// 8q = 3 therefore q = 37.5% where q is percent of wanting to attack a certain server based on the payoffs Server 1 is q server 2 is 1-q
+// What is the Mixed N.E? For the defender
+// I'm not gonna calculate this again but same calculations
+// where p is the percent of wanting to defender a server based on the payoffs
+// //Maxmin
+// What is the Maxmin
+
+// //MinMax

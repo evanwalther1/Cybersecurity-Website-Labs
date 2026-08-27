@@ -1,6 +1,9 @@
 import LabLayout from "./LabLayout";
+import { LabInternalLayout } from "./LabInternalLayout";
 import { cilBalanceScale } from "@coreui/icons";
 import ReactDOM from "react-dom";
+import { useState } from "react";
+import "../styles/LabWindow.css";
 
 const labProps = {
   title: "Lab 1: Introduction to Game Theory",
@@ -16,19 +19,22 @@ const labProps = {
   accentColor: "#4dabf7",
 };
 
-const handleStartLab = () => {
-  return ReactDOM.createPortal(
-    <>
-      <div>Testing</div>
-    </>,
-    document.getElementById("portal")!,
-  );
-};
-
 export const Lab1 = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const handleStartLab = () => {
+    setIsPlaying(true);
+  };
+
   return (
     <LabLayout onStartLab={handleStartLab} {...labProps}>
-      <></>
+      {isPlaying &&
+        ReactDOM.createPortal(
+          <LabInternalLayout
+            onClose={() => setIsPlaying(false)}
+          ></LabInternalLayout>,
+          document.getElementById("portal")!,
+        )}
     </LabLayout>
   );
 };

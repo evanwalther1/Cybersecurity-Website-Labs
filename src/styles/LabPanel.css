@@ -1,0 +1,26 @@
+.lab-panel-columns {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.lab-panel-static {
+  flex: 1 1 50%;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  padding-right: 1.5rem;
+}
+
+.lab-panel-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--cui-border-color, #dcdfe4);
+}
+
+.lab-panel-dynamic {
+  flex: 1 1 50%;
+  min-height: 0;
+  padding-left: 1.5rem;
+}

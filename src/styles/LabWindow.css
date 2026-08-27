@@ -1,0 +1,27 @@
+.lab-window {
+  position: fixed;
+  inset: 2rem;
+  z-index: 2000;
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* CoreUI's CTabs renders its own wrapper div with class "tabs" - target it
+   directly so it (and everything inside it) can grow to fill the window's
+   full height instead of only being as tall as its content. */
+.lab-window > .tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.lab-window-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
