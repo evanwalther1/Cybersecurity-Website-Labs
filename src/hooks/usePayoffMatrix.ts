@@ -16,6 +16,11 @@ export interface ClickedElement {
   player: "defender" | "attacker";
 }
 
+export interface HighlightedServer {
+  player: "defender" | "attacker";
+  server: 1 | 2;
+}
+
 const randomProDefender = (): Payoff => {
   let defender = Math.floor(Math.random() * 6);
   while (defender === 0) {
@@ -44,9 +49,22 @@ export function usePayoffMatrix() {
   const [clickedElement, setClickedElement] = useState<ClickedElement | null>(
     null,
   );
+  const [highlightedServer, setHighlightedServer] =
+    useState<HighlightedServer | null>(null);
 
   const isCellSelected = (row: number, col: number) =>
     clickedCell?.row === row && clickedCell?.col === col;
+
+  const isServerHighlighted = (
+    player: "defender" | "attacker",
+    server: 1 | 2,
+  ) =>
+    highlightedServer?.player === player &&
+    highlightedServer?.server === server;
+
+  const highlightServer = (player: "defender" | "attacker", server: 1 | 2) => {
+    setHighlightedServer({ player, server });
+  };
 
   const isElementSelected = (
     row: number,
@@ -64,7 +82,8 @@ export function usePayoffMatrix() {
   const clearSelection = () => {
     setClickedCell(null);
     setClickedElement(null);
-  }
+    setHighlightedServer(null);
+  };
 
   const handleElementClick = (
     event: React.MouseEvent,
@@ -84,8 +103,11 @@ export function usePayoffMatrix() {
     clickedCell,
     clearSelection,
     clickedElement,
+    highlightedServer,
+    highlightServer,
     isCellSelected,
     isElementSelected,
+    isServerHighlighted,
     handleCellClick,
     handleElementClick,
   };

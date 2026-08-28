@@ -1,17 +1,26 @@
 import { useState } from "react";
 import { CButton } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
-import { cilArrowLeft, cilArrowRight, cilLightbulb } from "@coreui/icons";
+import {
+  cilArrowLeft,
+  cilArrowRight,
+  cilCheckCircle,
+  cilLightbulb,
+} from "@coreui/icons";
 import "../styles/PayoffMatrix.css";
 import "../styles/LabPanel.css";
 import "../styles/ExampleLab1.css";
 import { usePayoffMatrix } from "../hooks/usePayoffMatrix";
 import type { Payoff } from "../hooks/usePayoffMatrix";
 
+interface Props {
+  setHasCompleted: (value: boolean) => void;
+}
 interface Step {
   question: string[];
   response: (matrix: Payoff[][]) => React.ReactNode[];
   highlightCell?: { row: number; col: number };
+  highlightServer?: { player: "defender" | "attacker"; server: 1 | 2 };
 }
 
 interface Page {
@@ -20,11 +29,46 @@ interface Page {
   steps: Step[];
 }
 
-// Mixed-strategy equilibrium: each player's own mixing probability is found
-// by making the OTHER player indifferent between their two pure strategies.
-// q = Attacker's probability of attacking Server 1 (1-q for Server 2) - found
-// by setting the Defender's expected payoff from "Defend Server 1" equal to
-// their expected payoff from "Defend Server 2", both written as functions of q.
+const calculateMaxmin = (matrix: Payoff[][]): number => {
+  const a = matrix[0][0].defender; // Defend S1, Attack S1
+  const b = matrix[0][1].defender; // Defend S1, Attack S2
+  const c = matrix[1][0].defender; // Defend S2, Attack S1
+  const d = matrix[1][1].defender; // Defend S2, Attack S2
+  return Math.max(Math.min(a, b), Math.min(c, d));
+};
+
+const calculateAttackerMaxmin = (matrix: Payoff[][]): number => {
+  const e = matrix[0][0].attacker; // Defend S1, Attack S1
+  const f = matrix[1][0].attacker; // Defend S2, Attack S1
+  const g = matrix[0][1].attacker; // Defend S1, Attack S2
+  const h = matrix[1][1].attacker; // Defend S2, Attack S2
+  return Math.max(Math.min(e, f), Math.min(g, h));
+};
+
+const calculateMinmax = (matrix: Payoff[][]): number => {
+  const row1AttackerMax = Math.max(
+    matrix[0][0].attacker,
+    matrix[0][1].attacker,
+  );
+  const row2AttackerMax = Math.max(
+    matrix[1][0].attacker,
+    matrix[1][1].attacker,
+  );
+  return Math.min(row1AttackerMax, row2AttackerMax);
+};
+
+const calculateAttackerMinmax = (matrix: Payoff[][]): number => {
+  const col1DefenderMax = Math.max(
+    matrix[0][0].defender,
+    matrix[1][0].defender,
+  );
+  const col2DefenderMax = Math.max(
+    matrix[0][1].defender,
+    matrix[1][1].defender,
+  );
+  return Math.min(col1DefenderMax, col2DefenderMax);
+};
+
 const computeAttackerQ = (matrix: Payoff[][]): number => {
   const a = matrix[0][0].defender; // Defend S1, Attack S1
   const b = matrix[0][1].defender; // Defend S1, Attack S2
@@ -33,9 +77,6 @@ const computeAttackerQ = (matrix: Payoff[][]): number => {
   return (d - b) / (a - b - c + d);
 };
 
-// p = Defender's probability of defending Server 1 (1-p for Server 2) -
-// same method, using the Attacker's payoffs across the Attacker's two pure
-// strategies instead.
 const computeDefenderP = (matrix: Payoff[][]): number => {
   const e = matrix[0][0].attacker; // Defend S1, Attack S1
   const f = matrix[1][0].attacker; // Defend S2, Attack S1
@@ -73,6 +114,7 @@ const generatePages = (): Page[] => [
           </>,
         ],
         highlightCell: { row: 0, col: 0 },
+        highlightServer: { player: "defender", server: 1 },
       },
       {
         question: [
@@ -93,13 +135,14 @@ const generatePages = (): Page[] => [
           </>,
         ],
         highlightCell: { row: 1, col: 0 },
+        highlightServer: { player: "attacker", server: 1 },
       },
     ],
   },
   {
     topic: "Pure Nash Equilibrium",
     definition: [
-      "A Pure Nash Equilibrium is a stable outcome where every player is playing one single, specific strategy - not a mix of strategies - and no player can improve their own payoff by unilaterally switching strategies, assuming everyone else keeps theirs fixed.",
+      "A Pure Nash Equilibrium is a stable outcome where every player is playing one single specific strategy (not a mix of strategies), and no player has any incentive to switch strategies because their payoff won't be higher.",
     ],
     steps: [
       {
@@ -113,7 +156,7 @@ const generatePages = (): Page[] => [
   {
     topic: "Mixed Nash Equilibrium",
     definition: [
-      "A Mixed Nash Equilibrium is an equilibrium where a player randomizes between two or more strategies according to specific probabilities, rather than committing to one. It's used when no Pure Nash Equilibrium exists - each player picks probabilities that make the other player indifferent between their own choices.",
+      "A Mixed Nash Equilibrium is an equilibrium where a player randomizes between two or more strategies according to specific probabilities, rather than committing to one. It's used when no Pure Nash Equilibrium exists, each player picks probabilities that make the other player indifferent between their own choices.",
     ],
     steps: [
       {
@@ -148,7 +191,7 @@ const generatePages = (): Page[] => [
           const h = matrix[1][1].attacker;
           const p = computeDefenderP(matrix);
           return [
-            "The same method applies to the Defender's mixing probability, p (the probability of defending Server 1, with (1-p) for Server 2) - this time make the Attacker indifferent between their two strategies.",
+            "The same method applies to the Defender's mixing probability, p (the probability of defending Server 1, with (1-p) for Server 2), this time make the Attacker indifferent between their two strategies.",
             `Expected payoff if the Attacker attacks Server 1: ${e}p + ${f}(1 - p)`,
             `Expected payoff if the Attacker attacks Server 2: ${g}p + ${h}(1 - p)`,
             `Set them equal: ${e}p + ${f}(1 - p) = ${g}p + ${h}(1 - p)`,
@@ -167,44 +210,146 @@ const generatePages = (): Page[] => [
   {
     topic: "Maxmin",
     definition: [
-      "The maxmin strategy is a cautious, worst-case approach: for each strategy a player could choose, look at the worst possible outcome it could lead to, then pick whichever strategy makes that worst-case outcome as good as possible - the 'best of the worst.'",
+      "The Maxmin Strategy is a plan of action where a player chooses the option that maximizes their own minimum possible payoff." +
+        " It addresses the cautious, worst-case scenario. For each strategy a player could choose, look at the worst possible outcome it could lead to," +
+        " then pick whichever strategy makes that worst-case outcome as good as possible." +
+        " This is a defensive choice used to avoid the absolute worst outcome",
+      "Note: this is different from the Mixed Nash Equilibrium you just saw. Maxmin assumes the player is locked into a single fixed choice with no randomizing, it's the safest guaranteed outcome if mixing isn't an option. A rational, adapting opponent can still exploit a fixed choice over time, which is exactly why mixing becomes necessary for a stable equilibrium in a game like this one.",
     ],
     steps: [
       {
         question: ["What is the Maxmin value for the Defender?"],
-        response: (_matrix) => ["TODO"],
+        response: (matrix) => {
+          const a = matrix[0][0].defender;
+          const b = matrix[0][1].defender;
+          const c = matrix[1][0].defender;
+          const d = matrix[1][1].defender;
+          const minServer1 = Math.min(a, b);
+          const minServer2 = Math.min(c, d);
+          const maxmin = calculateMaxmin(matrix);
+          const bestServer = minServer1 >= minServer2 ? 1 : 2;
+          return [
+            "To find the Maxmin value for the Defender we need to choose the minimum payoff for each strategy, then choose the maximum of those.",
+            `For Server 1 we have two possible payoffs, ${a} and ${b}; the minimum of these is ${minServer1}.`,
+            `For Server 2 we have two possible payoffs, ${c} and ${d}; the minimum of these is ${minServer2}.`,
+            `The maximum of these two minimums is the Maxmin value: max(${minServer1}, ${minServer2}) = ${maxmin}.`,
+            <>
+              Maxmin = <strong className="dynamic-highlight">{maxmin}</strong>.
+              The Defender should defend Server {bestServer} to guarantee at
+              least this payoff, no matter what the Attacker does.
+            </>,
+          ];
+        },
+      },
+      {
+        question: ["What is the Maxmin value for the Attacker?"],
+        response: (matrix) => {
+          const e = matrix[0][0].attacker;
+          const f = matrix[1][0].attacker;
+          const g = matrix[0][1].attacker;
+          const h = matrix[1][1].attacker;
+          const minServer1 = Math.min(e, f);
+          const minServer2 = Math.min(g, h);
+          const maxmin = calculateAttackerMaxmin(matrix);
+          const bestServer = minServer1 >= minServer2 ? 1 : 2;
+          return [
+            "The same method applies to the Attacker, using the Attacker's own payoffs.",
+            `For Server 1 we have two possible payoffs, ${e} and ${f}; the minimum of these is ${minServer1}.`,
+            `For Server 2 we have two possible payoffs, ${g} and ${h}; the minimum of these is ${minServer2}.`,
+            `The maximum of these two minimums is the Maxmin value: max(${minServer1}, ${minServer2}) = ${maxmin}.`,
+            <>
+              Maxmin = <strong className="dynamic-highlight">{maxmin}</strong>.
+              The Attacker should attack Server {bestServer} to guarantee at
+              least this payoff, no matter what the Defender does.
+            </>,
+          ];
+        },
       },
     ],
   },
   {
     topic: "Minmax",
     definition: [
-      "The minmax strategy looks at things from the opposite side of maxmin: it's the strategy that minimizes the best possible outcome the other player could achieve, effectively limiting how much the opponent can gain no matter how they respond.",
+      "The Minmax Strategy is the opposite of maxmin, it's a plan of action that minimizes the maximum possible payoff of an opponent." +
+        " This strategy effectively limits how much the opponent can gain no matter how they respond. (In a zero-sum game such as this one," +
+        " this strategy also minimizes their own maximum possible loss)",
+      "Note: as with Maxmin, this assumes a single fixed choice with no randomizing, it's a different question from the Mixed Nash Equilibrium's optimal randomized strategy.",
     ],
     steps: [
       {
+        question: ["What is the Minmax value for the Defender?"],
+        response: (matrix) => {
+          const row1AttackerMax = Math.max(
+            matrix[0][0].attacker,
+            matrix[0][1].attacker,
+          );
+          const row2AttackerMax = Math.max(
+            matrix[1][0].attacker,
+            matrix[1][1].attacker,
+          );
+          const minmax = calculateMinmax(matrix);
+          const bestServer = row1AttackerMax <= row2AttackerMax ? 1 : 2;
+          return [
+            "To find the Minmax value for the Defender, look at the best payoff the Attacker could get in response to each Defender strategy, then choose whichever Defender strategy keeps that as small as possible.",
+            `If the Defender defends Server 1, the Attacker's best possible payoff is max(${matrix[0][0].attacker}, ${matrix[0][1].attacker}) = ${row1AttackerMax}.`,
+            `If the Defender defends Server 2, the Attacker's best possible payoff is max(${matrix[1][0].attacker}, ${matrix[1][1].attacker}) = ${row2AttackerMax}.`,
+            `The minimum of these two is the Minmax value: min(${row1AttackerMax}, ${row2AttackerMax}) = ${minmax}.`,
+            <>
+              Minmax = <strong className="dynamic-highlight">{minmax}</strong>.
+              The Defender should defend Server {bestServer} to limit the
+              Attacker to at most this payoff.
+            </>,
+          ];
+        },
+      },
+      {
         question: ["What is the Minmax value for the Attacker?"],
-        response: (_matrix) => ["TODO"],
+        response: (matrix) => {
+          const col1DefenderMax = Math.max(
+            matrix[0][0].defender,
+            matrix[1][0].defender,
+          );
+          const col2DefenderMax = Math.max(
+            matrix[0][1].defender,
+            matrix[1][1].defender,
+          );
+          const minmax = calculateAttackerMinmax(matrix);
+          const bestServer = col1DefenderMax <= col2DefenderMax ? 1 : 2;
+          return [
+            "The same method applies to the Attacker: look at the best payoff the Defender could get in response to each Attacker strategy, then choose whichever Attacker strategy keeps that as small as possible.",
+            `If the Attacker attacks Server 1, the Defender's best possible payoff is max(${matrix[0][0].defender}, ${matrix[1][0].defender}) = ${col1DefenderMax}.`,
+            `If the Attacker attacks Server 2, the Defender's best possible payoff is max(${matrix[0][1].defender}, ${matrix[1][1].defender}) = ${col2DefenderMax}.`,
+            `The minimum of these two is the Minmax value: min(${col1DefenderMax}, ${col2DefenderMax}) = ${minmax}.`,
+            <>
+              Minmax = <strong className="dynamic-highlight">{minmax}</strong>.
+              The Attacker should attack Server {bestServer} to limit the
+              Defender to at most this payoff.
+            </>,
+          ];
+        },
       },
     ],
   },
 ];
 
-export const ExampleLab1 = () => {
+export const ExampleLab1 = ({ setHasCompleted }: Props) => {
   const {
     matrix,
     isDisabled,
     isCellSelected,
     clearSelection,
     isElementSelected,
+    isServerHighlighted,
     handleCellClick,
     handleElementClick,
+    highlightServer,
   } = usePayoffMatrix();
 
   const [pages] = useState<Page[]>(generatePages);
   const [pageIndex, setPageIndex] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
 
   const currentPage = pages[pageIndex];
   const currentStep = currentPage?.steps[stepIndex];
@@ -221,10 +366,18 @@ export const ExampleLab1 = () => {
         currentStep.highlightCell.col,
       );
     }
+    if (currentStep.highlightServer) {
+      highlightServer(
+        currentStep.highlightServer.player,
+        currentStep.highlightServer.server,
+      );
+    }
   };
 
   const handleNextQuestion = () => {
     if (isLastStepInPage && isLastPage) {
+      setHasCompleted(true);
+      setIsComplete(true);
       return;
     }
     if (isLastStepInPage) {
@@ -233,11 +386,15 @@ export const ExampleLab1 = () => {
     } else {
       setStepIndex((index) => index + 1);
     }
-    clearSelection;
+    clearSelection();
     setIsRevealed(false);
   };
 
   const handleGoBack = () => {
+    if (isComplete) {
+      setIsComplete(false);
+      return;
+    }
     if (pageIndex === 0 && stepIndex === 0) {
       return;
     }
@@ -277,10 +434,18 @@ export const ExampleLab1 = () => {
             <div className="matrix-axis-label matrix-axis-attacker">
               Attacker
             </div>
-            <div className="matrix-sub-header matrix-col-sub-1">
+            <div
+              className={`matrix-sub-header matrix-col-sub-1${
+                isServerHighlighted("attacker", 1) ? " selected" : ""
+              }`}
+            >
               Server 1{showMixLabels && <span className="mix-label">(q)</span>}
             </div>
-            <div className="matrix-sub-header matrix-col-sub-2">
+            <div
+              className={`matrix-sub-header matrix-col-sub-2${
+                isServerHighlighted("attacker", 2) ? " selected" : ""
+              }`}
+            >
               Server 2
               {showMixLabels && <span className="mix-label">(1-q)</span>}
             </div>
@@ -288,10 +453,18 @@ export const ExampleLab1 = () => {
             <div className="matrix-axis-label matrix-axis-defender">
               Defender
             </div>
-            <div className="matrix-sub-header matrix-row-sub-1">
+            <div
+              className={`matrix-sub-header matrix-row-sub-1${
+                isServerHighlighted("defender", 1) ? " selected" : ""
+              }`}
+            >
               Server 1{showMixLabels && <span className="mix-label">(p)</span>}
             </div>
-            <div className="matrix-sub-header matrix-row-sub-2">
+            <div
+              className={`matrix-sub-header matrix-row-sub-2${
+                isServerHighlighted("defender", 2) ? " selected" : ""
+              }`}
+            >
               Server 2
               {showMixLabels && <span className="mix-label">(1-p)</span>}
             </div>
@@ -339,6 +512,8 @@ export const ExampleLab1 = () => {
               )),
             )}
           </div>
+
+          <p className="matrix-legend">(Defender payoff, Attacker payoff)</p>
         </div>
       </div>
 
@@ -347,40 +522,68 @@ export const ExampleLab1 = () => {
       <div className="lab-panel-dynamic">
         <div className="dynamic-walkthrough">
           <div className="dynamic-content">
-            <div className="dynamic-definition">
-              <CIcon icon={cilLightbulb} className="dynamic-definition-icon" />
-              <div>
-                {currentPage.definition.map((line, index) => (
-                  <p key={`definition-${index}`}>{line}</p>
-                ))}
-              </div>
-            </div>
-
-            <p className="dynamic-topic">{currentPage.topic}</p>
-
-            {currentStep.question.map((line, index) => (
-              <p className="dynamic-question" key={`question-${index}`}>
-                {line}
-              </p>
-            ))}
-
-            {isRevealed &&
-              currentStep.response(matrix).map((line, index) => (
-                <p className="dynamic-response" key={`response-${index}`}>
-                  {line}
+            {isComplete ? (
+              <div className="dynamic-finish">
+                <p className="dynamic-finish-title">Walkthrough complete!</p>
+                <p className="dynamic-finish-subtitle">
+                  Great work - you've walked through every concept in this lab.
                 </p>
-              ))}
+                <div className="concepts-learned">
+                  <p className="concepts-learned-title">Concepts learned</p>
+                  <ul className="concepts-learned-list">
+                    {pages.map((page) => (
+                      <li key={page.topic}>
+                        <CIcon
+                          icon={cilCheckCircle}
+                          className="concepts-learned-icon"
+                        />
+                        <span>{page.topic}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p className="dynamic-finish-subtitle">
+                  Practice is now open to work through these concepts yourself.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="dynamic-definition">
+                  <CIcon
+                    icon={cilLightbulb}
+                    className="dynamic-definition-icon"
+                  />
+                  <div>
+                    {currentPage.definition.map((line, index) => (
+                      <p key={`definition-${index}`}>{line}</p>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="dynamic-controls">
-              {!isRevealed && (
-                <CButton color="primary" onClick={handleReveal}>
-                  Show Answer
-                </CButton>
-              )}
-              {isRevealed && isLastStepInPage && isLastPage && (
-                <p className="dynamic-complete">Walkthrough complete!</p>
-              )}
-            </div>
+                <p className="dynamic-topic">{currentPage.topic}</p>
+
+                {currentStep.question.map((line, index) => (
+                  <p className="dynamic-question" key={`question-${index}`}>
+                    {line}
+                  </p>
+                ))}
+
+                {isRevealed &&
+                  currentStep.response(matrix).map((line, index) => (
+                    <p className="dynamic-response" key={`response-${index}`}>
+                      {line}
+                    </p>
+                  ))}
+
+                <div className="dynamic-controls">
+                  {!isRevealed && (
+                    <CButton color="primary" onClick={handleReveal}>
+                      Show Answer
+                    </CButton>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="dynamic-nav">
@@ -394,7 +597,7 @@ export const ExampleLab1 = () => {
             <CButton
               color="secondary"
               onClick={handleNextQuestion}
-              disabled={!isRevealed && !isLastPage}
+              disabled={isComplete || (!isRevealed && !isLastPage)}
             >
               <CIcon icon={cilArrowRight} />
             </CButton>

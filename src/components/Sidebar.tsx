@@ -18,7 +18,7 @@ import "../styles/Sidebar.css";
 
 const Sidebar = () => {
   return (
-    <CSidebar className="border-end" unfoldable>
+    <CSidebar className="border-end" unfoldable colorScheme="dark">
       <CSidebarHeader className="border-bottom">
         <CSidebarBrand className="d-flex align-items-center gap-2">
           <img

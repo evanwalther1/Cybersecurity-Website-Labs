@@ -29,6 +29,11 @@
   padding: 0.75rem 1rem;
 }
 
+[data-coreui-theme="dark"] .dynamic-definition {
+  background: rgba(77, 171, 247, 0.1);
+  border-color: rgba(77, 171, 247, 0.35);
+}
+
 .dynamic-definition-icon {
   flex-shrink: 0;
   width: 1.1rem;
@@ -40,7 +45,7 @@
 .dynamic-definition p {
   margin: 0;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--cui-body-color);
 }
 
 .dynamic-definition p + p {
@@ -75,9 +80,61 @@
   margin-top: 1rem;
 }
 
-.dynamic-complete {
-  font-weight: 600;
+.dynamic-finish {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  gap: 1rem;
+}
+
+.dynamic-finish-title {
+  font-size: 1.35rem;
+  font-weight: 700;
   margin: 0;
+}
+
+.dynamic-finish-subtitle {
+  margin: 0;
+  color: var(--cui-secondary-color);
+}
+
+.concepts-learned {
+  margin-top: 0.5rem;
+  width: 100%;
+  max-width: 22rem;
+  text-align: left;
+}
+
+.concepts-learned-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #4dabf7;
+  margin: 0 0 0.5rem;
+}
+
+.concepts-learned-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.concepts-learned-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.concepts-learned-icon {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--cui-success);
 }
 
 .dynamic-nav {
