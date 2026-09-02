@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CButton } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import {
@@ -10,7 +10,16 @@ import {
 import "../styles/PayoffMatrix.css";
 import "../styles/LabPanel.css";
 import "../styles/ExampleLab1.css";
-import { usePayoffMatrix } from "../hooks/usePayoffMatrix";
+import {
+  usePayoffMatrix,
+  asPercent,
+  computeAttackerQ,
+  computeDefenderP,
+  calculateDefenderMaxmin,
+  calculateAttackerMaxmin,
+  calculateDefenderMinmax,
+  calculateAttackerMinmax,
+} from "../hooks/usePayoffMatrix";
 import type { Payoff } from "../hooks/usePayoffMatrix";
 
 interface Props {
@@ -28,64 +37,6 @@ interface Page {
   definition: string[];
   steps: Step[];
 }
-
-const calculateMaxmin = (matrix: Payoff[][]): number => {
-  const a = matrix[0][0].defender; // Defend S1, Attack S1
-  const b = matrix[0][1].defender; // Defend S1, Attack S2
-  const c = matrix[1][0].defender; // Defend S2, Attack S1
-  const d = matrix[1][1].defender; // Defend S2, Attack S2
-  return Math.max(Math.min(a, b), Math.min(c, d));
-};
-
-const calculateAttackerMaxmin = (matrix: Payoff[][]): number => {
-  const e = matrix[0][0].attacker; // Defend S1, Attack S1
-  const f = matrix[1][0].attacker; // Defend S2, Attack S1
-  const g = matrix[0][1].attacker; // Defend S1, Attack S2
-  const h = matrix[1][1].attacker; // Defend S2, Attack S2
-  return Math.max(Math.min(e, f), Math.min(g, h));
-};
-
-const calculateMinmax = (matrix: Payoff[][]): number => {
-  const row1AttackerMax = Math.max(
-    matrix[0][0].attacker,
-    matrix[0][1].attacker,
-  );
-  const row2AttackerMax = Math.max(
-    matrix[1][0].attacker,
-    matrix[1][1].attacker,
-  );
-  return Math.min(row1AttackerMax, row2AttackerMax);
-};
-
-const calculateAttackerMinmax = (matrix: Payoff[][]): number => {
-  const col1DefenderMax = Math.max(
-    matrix[0][0].defender,
-    matrix[1][0].defender,
-  );
-  const col2DefenderMax = Math.max(
-    matrix[0][1].defender,
-    matrix[1][1].defender,
-  );
-  return Math.min(col1DefenderMax, col2DefenderMax);
-};
-
-const computeAttackerQ = (matrix: Payoff[][]): number => {
-  const a = matrix[0][0].defender; // Defend S1, Attack S1
-  const b = matrix[0][1].defender; // Defend S1, Attack S2
-  const c = matrix[1][0].defender; // Defend S2, Attack S1
-  const d = matrix[1][1].defender; // Defend S2, Attack S2
-  return (d - b) / (a - b - c + d);
-};
-
-const computeDefenderP = (matrix: Payoff[][]): number => {
-  const e = matrix[0][0].attacker; // Defend S1, Attack S1
-  const f = matrix[1][0].attacker; // Defend S2, Attack S1
-  const g = matrix[0][1].attacker; // Defend S1, Attack S2
-  const h = matrix[1][1].attacker; // Defend S2, Attack S2
-  return (h - f) / (e - f - g + h);
-};
-
-const asPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
 
 const generatePages = (): Page[] => [
   {
@@ -149,6 +100,7 @@ const generatePages = (): Page[] => [
         question: ["Is there a Pure Nash Equilibrium in this game?"],
         response: (_matrix) => [
           "There is no pure Nash Equilibrium: whichever server the defender defends, the attacker is always better off attacking the other one, and vice versa.",
+          "A Pure Nash Equilibrium requires both players to be able to lock in one single choice at the same time, with neither one wanting to switch once they see what the other picked. Here that's impossible, any fixed pairing of choices immediately gives one player a reason to change, and reacting to that change immediately gives the other player a reason to change too. This back-and-forth never settles down, so no stable single-choice outcome exists.",
         ],
       },
     ],
@@ -226,7 +178,7 @@ const generatePages = (): Page[] => [
           const d = matrix[1][1].defender;
           const minServer1 = Math.min(a, b);
           const minServer2 = Math.min(c, d);
-          const maxmin = calculateMaxmin(matrix);
+          const maxmin = calculateDefenderMaxmin(matrix);
           const bestServer = minServer1 >= minServer2 ? 1 : 2;
           return [
             "To find the Maxmin value for the Defender we need to choose the minimum payoff for each strategy, then choose the maximum of those.",
@@ -287,7 +239,7 @@ const generatePages = (): Page[] => [
             matrix[1][0].attacker,
             matrix[1][1].attacker,
           );
-          const minmax = calculateMinmax(matrix);
+          const minmax = calculateDefenderMinmax(matrix);
           const bestServer = row1AttackerMax <= row2AttackerMax ? 1 : 2;
           return [
             "To find the Minmax value for the Defender, look at the best payoff the Attacker could get in response to each Defender strategy, then choose whichever Defender strategy keeps that as small as possible.",
@@ -348,18 +300,23 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
   const [pages] = useState<Page[]>(generatePages);
   const [pageIndex, setPageIndex] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
-  const [isRevealed, setIsRevealed] = useState(false);
+  // Tracks every step that has ever been revealed, keyed by "pageIndex-stepIndex",
+  // so navigating back and forward remembers each step's own reveal state
+  // instead of one flag that resets on every move.
+  const [revealedSteps, setRevealedSteps] = useState<Set<string>>(new Set());
   const [isComplete, setIsComplete] = useState(false);
 
   const currentPage = pages[pageIndex];
   const currentStep = currentPage?.steps[stepIndex];
+  const currentStepKey = `${pageIndex}-${stepIndex}`;
+  const isRevealed = revealedSteps.has(currentStepKey);
   const isLastStepInPage = stepIndex === currentPage.steps.length - 1;
   const isLastPage = pageIndex === pages.length - 1;
   const showMixLabels =
     isRevealed && currentPage.topic === "Mixed Nash Equilibrium";
 
   const handleReveal = () => {
-    setIsRevealed(true);
+    setRevealedSteps((prev) => new Set(prev).add(currentStepKey));
     if (currentStep.highlightCell) {
       handleCellClick(
         currentStep.highlightCell.row,
@@ -373,6 +330,24 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
       );
     }
   };
+  useEffect(() => {
+    if (isRevealed) {
+      if (currentStep.highlightCell) {
+        handleCellClick(
+          currentStep.highlightCell.row,
+          currentStep.highlightCell.col,
+        );
+      }
+      if (currentStep.highlightServer) {
+        highlightServer(
+          currentStep.highlightServer.player,
+          currentStep.highlightServer.server,
+        );
+      }
+    } else {
+      clearSelection();
+    }
+  }, [pageIndex, stepIndex]);
 
   const handleNextQuestion = () => {
     if (isLastStepInPage && isLastPage) {
@@ -387,7 +362,6 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
       setStepIndex((index) => index + 1);
     }
     clearSelection();
-    setIsRevealed(false);
   };
 
   const handleGoBack = () => {
@@ -405,7 +379,6 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
     } else {
       setStepIndex((index) => index - 1);
     }
-    setIsRevealed(true);
   };
 
   return (

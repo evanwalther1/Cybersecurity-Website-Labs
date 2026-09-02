@@ -26,3 +26,30 @@
   min-height: 0;
   display: flex;
 }
+
+/* Modal/backdrop z-index is handled globally in index.css - every modal in
+   this app needs to clear .lab-window's z-index (2000), so that override
+   lives in one place instead of being repeated (and easy to mismatch) per
+   modal. */
+
+.close-confirm-modal .modal-content {
+  border: none;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.close-confirm-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.close-confirm-icon {
+  flex-shrink: 0;
+  width: 1.3rem;
+  height: 1.3rem;
+  color: var(--cui-danger);
+}
+

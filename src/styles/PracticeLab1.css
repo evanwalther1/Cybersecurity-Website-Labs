@@ -17,3 +17,100 @@
   display: flex;
   gap: 1rem;
 }
+
+.practice-walkthrough {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.practice-role {
+  margin: 0;
+  padding-bottom: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cui-secondary-color);
+  text-align: center;
+}
+
+.practice-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5rem;
+  padding-right: 0.5rem;
+}
+
+.practice-question {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+
+.practice-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 24rem;
+  margin: 0 auto;
+}
+
+.practice-choice {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  text-align: left;
+  background: var(--cui-tertiary-bg);
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  color: var(--cui-body-color);
+  cursor: pointer;
+}
+
+.practice-choice:hover {
+  border-color: #4dabf7;
+}
+
+.practice-choice.selected {
+  background: #e7f3ff;
+  border-color: #4dabf7;
+  font-weight: 600;
+}
+
+[data-coreui-theme="dark"] .practice-choice.selected {
+  background: rgba(77, 171, 247, 0.18);
+}
+
+.practice-explain {
+  margin-top: 0.25rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--cui-tertiary-bg);
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.5rem;
+  text-align: left;
+}
+
+.practice-explain-prompt {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--cui-body-color);
+}
+
+.practice-explain textarea {
+  font-size: 0.9rem;
+}
+
+.practice-submit {
+  width: 100%;
+  margin-top: 0.25rem;
+  font-weight: 600;
+  color: #fff;
+}

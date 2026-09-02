@@ -1,3 +1,16 @@
 body {
   margin: 0;
 }
+
+/* CoreUI's default modal/backdrop z-index (1055/1050) sits below our own
+   .lab-window (2000). Applied globally, once, so every modal in the app -
+   present and future (each lab's own Results modal included) - stays
+   correctly ordered above .lab-window and above its own backdrop, without
+   needing a matching pair of overrides added per modal. */
+.modal {
+  --cui-modal-zindex: 2100;
+}
+
+.modal-backdrop {
+  --cui-backdrop-zindex: 2090;
+}
