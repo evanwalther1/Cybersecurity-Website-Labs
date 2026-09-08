@@ -112,7 +112,9 @@ const generatePages = (): Page[] => [
     ],
     steps: [
       {
-        question: ["What is the Mixed Nash Equilibrium for the Attacker?"],
+        question: [
+          "What is the Mixed-Strategy Nash Equilibrium probabilities for the Attacker?",
+        ],
         response: (matrix) => {
           const a = matrix[0][0].defender;
           const b = matrix[0][1].defender;
@@ -135,7 +137,9 @@ const generatePages = (): Page[] => [
         },
       },
       {
-        question: ["What is the Mixed Nash Equilibrium for the Defender?"],
+        question: [
+          "What is the Mixed-Strategy Nash Equilibrium probabilities for the Defender?",
+        ],
         response: (matrix) => {
           const e = matrix[0][0].attacker;
           const f = matrix[1][0].attacker;
@@ -300,11 +304,9 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
   const [pages] = useState<Page[]>(generatePages);
   const [pageIndex, setPageIndex] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
-  // Tracks every step that has ever been revealed, keyed by "pageIndex-stepIndex",
-  // so navigating back and forward remembers each step's own reveal state
-  // instead of one flag that resets on every move.
   const [revealedSteps, setRevealedSteps] = useState<Set<string>>(new Set());
   const [isComplete, setIsComplete] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
 
   const currentPage = pages[pageIndex];
   const currentStep = currentPage?.steps[stepIndex];
@@ -312,8 +314,23 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
   const isRevealed = revealedSteps.has(currentStepKey);
   const isLastStepInPage = stepIndex === currentPage.steps.length - 1;
   const isLastPage = pageIndex === pages.length - 1;
-  const showMixLabels =
-    isRevealed && currentPage.topic === "Mixed Nash Equilibrium";
+  const isMixedNEPage = currentPage.topic === "Mixed Nash Equilibrium";
+
+  const showAttackerMix = isRevealed && isMixedNEPage && stepIndex === 0;
+  const showDefenderMix = isRevealed && isMixedNEPage && stepIndex === 1;
+  const mixedQ = computeAttackerQ(matrix);
+  const mixedP = computeDefenderP(matrix);
+
+  useEffect(() => {
+    if (showIntro) {
+      handleCellClick(0, 0);
+    }
+  }, [showIntro]);
+
+  const handleBeginWalkthrough = () => {
+    clearSelection();
+    setShowIntro(false);
+  };
 
   const handleReveal = () => {
     setRevealedSteps((prev) => new Set(prev).add(currentStepKey));
@@ -331,6 +348,14 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
     }
   };
   useEffect(() => {
+    // The intro screen manages its own highlight (see the effect above) -
+    // skip this one entirely while it's showing, otherwise this effect
+    // still runs on mount (pageIndex/stepIndex are "new" then too) and its
+    // `else` branch clears the selection the intro effect just set, since
+    // nothing is revealed yet at page 0 / step 0.
+    if (showIntro) {
+      return;
+    }
     if (isRevealed) {
       if (currentStep.highlightCell) {
         handleCellClick(
@@ -347,9 +372,13 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
     } else {
       clearSelection();
     }
-  }, [pageIndex, stepIndex]);
+  }, [pageIndex, stepIndex, showIntro]);
 
   const handleNextQuestion = () => {
+    if (showIntro) {
+      handleBeginWalkthrough();
+      return;
+    }
     if (isLastStepInPage && isLastPage) {
       setHasCompleted(true);
       setIsComplete(true);
@@ -370,6 +399,8 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
       return;
     }
     if (pageIndex === 0 && stepIndex === 0) {
+      clearSelection();
+      setShowIntro(true);
       return;
     }
     if (stepIndex === 0) {
@@ -412,15 +443,26 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
                 isServerHighlighted("attacker", 1) ? " selected" : ""
               }`}
             >
-              Server 1{showMixLabels && <span className="mix-label">(q)</span>}
+              <span className="mix-header-line">
+                Server 1
+                {showAttackerMix && <span className="mix-label">(q)</span>}
+              </span>
+              {showAttackerMix && (
+                <span className="mix-percent">{asPercent(mixedQ)}</span>
+              )}
             </div>
             <div
               className={`matrix-sub-header matrix-col-sub-2${
                 isServerHighlighted("attacker", 2) ? " selected" : ""
               }`}
             >
-              Server 2
-              {showMixLabels && <span className="mix-label">(1-q)</span>}
+              <span className="mix-header-line">
+                Server 2
+                {showAttackerMix && <span className="mix-label">(1-q)</span>}
+              </span>
+              {showAttackerMix && (
+                <span className="mix-percent">{asPercent(1 - mixedQ)}</span>
+              )}
             </div>
 
             <div className="matrix-axis-label matrix-axis-defender">
@@ -431,15 +473,26 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
                 isServerHighlighted("defender", 1) ? " selected" : ""
               }`}
             >
-              Server 1{showMixLabels && <span className="mix-label">(p)</span>}
+              <span className="mix-header-line">
+                Server 1
+                {showDefenderMix && <span className="mix-label">(p)</span>}
+              </span>
+              {showDefenderMix && (
+                <span className="mix-percent">{asPercent(mixedP)}</span>
+              )}
             </div>
             <div
               className={`matrix-sub-header matrix-row-sub-2${
                 isServerHighlighted("defender", 2) ? " selected" : ""
               }`}
             >
-              Server 2
-              {showMixLabels && <span className="mix-label">(1-p)</span>}
+              <span className="mix-header-line">
+                Server 2
+                {showDefenderMix && <span className="mix-label">(1-p)</span>}
+              </span>
+              {showDefenderMix && (
+                <span className="mix-percent">{asPercent(1 - mixedP)}</span>
+              )}
             </div>
 
             {matrix.map((row, rowIndex) =>
@@ -495,7 +548,55 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
       <div className="lab-panel-dynamic">
         <div className="dynamic-walkthrough">
           <div className="dynamic-content">
-            {isComplete ? (
+            {showIntro ? (
+              <div className="dynamic-intro">
+                <div className="dynamic-definition">
+                  <CIcon
+                    icon={cilLightbulb}
+                    className="dynamic-definition-icon"
+                  />
+                  <div>
+                    <p>
+                      This specific layout, one matrix listing every player's
+                      payoff for every combination of strategies all at once is
+                      called <strong>Normal Form</strong>. It's different from{" "}
+                      <strong>Extensive Form</strong>, which represents a game
+                      as a sequence of moves made over time instead of a single
+                      simultaneous grid. More on that in future labs.
+                    </p>
+                  </div>
+                </div>
+                <p className="dynamic-topic">Zero-Sum Game (Normal Form)</p>
+                <p className="dynamic-intro-text">
+                  A zero-sum game is a strategic interaction where one player's
+                  gain is always exactly the other player's loss, every
+                  outcome's payoffs add up to zero. If Ud is the Defender's
+                  payoff and Ua is the Attacker's payoff for a given outcome,
+                  that relationship is written as <strong>Ud + Ua = 0</strong>{" "}
+                  (equivalently, <strong>Ua = -Ud</strong>).
+                </p>
+                <p className="dynamic-intro-text">
+                  You can see this directly in the payoff matrix on the left.
+                  Take the highlighted cell: the Defender's payoff there is{" "}
+                  <strong className="dynamic-highlight">
+                    {matrix[0][0].defender}
+                  </strong>{" "}
+                  and the Attacker's payoff is{" "}
+                  <strong className="dynamic-highlight">
+                    {matrix[0][0].attacker}
+                  </strong>
+                  . Add them together and it's always zero:{" "}
+                  {matrix[0][0].defender} + {matrix[0][0].attacker} = 0. That
+                  holds true for every cell in the matrix, no matter how it's
+                  randomized.
+                </p>
+                <div className="dynamic-controls">
+                  <CButton color="primary" onClick={handleBeginWalkthrough}>
+                    Begin Walkthrough
+                  </CButton>
+                </div>
+              </div>
+            ) : isComplete ? (
               <div className="dynamic-finish">
                 <p className="dynamic-finish-title">Walkthrough complete!</p>
                 <p className="dynamic-finish-subtitle">
@@ -563,14 +664,16 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
             <CButton
               color="secondary"
               onClick={handleGoBack}
-              disabled={pageIndex == 0 && stepIndex == 0}
+              disabled={showIntro}
             >
               <CIcon icon={cilArrowLeft} />
             </CButton>
             <CButton
               color="secondary"
               onClick={handleNextQuestion}
-              disabled={isComplete || (!isRevealed && !isLastPage)}
+              disabled={
+                !showIntro && (isComplete || (!isRevealed && !isLastPage))
+              }
             >
               <CIcon icon={cilArrowRight} />
             </CButton>

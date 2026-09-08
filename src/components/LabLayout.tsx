@@ -1,4 +1,5 @@
 import { useState } from "react";
+import jsPDF from "jspdf";
 import {
   CBadge,
   CButton,
@@ -6,6 +7,9 @@ import {
   CCardBody,
   CCardTitle,
   CContainer,
+  CForm,
+  CFormInput,
+  CFormLabel,
   CModal,
   CModalBody,
   CModalFooter,
@@ -39,6 +43,96 @@ const LabLayout = ({
   children,
 }: LabLayoutProps) => {
   const [showResults, setShowResults] = useState(false);
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [name, setName] = useState("");
+
+  const onStartPreLab = () => {
+    setShowNamePrompt(true);
+  };
+
+  // CoreUI's CModal calls `onClose` on every visible -> false transition,
+  // not just when the user dismisses it (backdrop click/Escape) - so it
+  // also fires right after handleConfirmNamePrompt below closes the modal
+  // programmatically. Keep this handler limited to "the modal finished
+  // closing, sync our state" and never clear `name` here, or confirming
+  // would immediately wipe out the name that was just entered.
+  const handleModalClose = () => {
+    setShowNamePrompt(false);
+  };
+
+  const handleCancelNamePrompt = () => {
+    setName("");
+    setShowNamePrompt(false);
+  };
+
+  const handleConfirmNamePrompt = () => {
+    setShowNamePrompt(false);
+    onStartLab();
+  };
+
+  const handleExportPdf = () => {
+    if (!labResult) return;
+
+    const doc = new jsPDF();
+    const marginX = 14;
+    const pageBottom = 280;
+    const wrapWidth = 180;
+    let y = 20;
+
+    const ensureRoom = (lineHeight: number) => {
+      if (y + lineHeight > pageBottom) {
+        doc.addPage();
+        y = 20;
+      }
+    };
+
+    doc.setFontSize(18);
+    doc.text(title, marginX, y);
+    y += 10;
+
+    doc.setFontSize(12);
+    doc.text(`Name: ${name || "Unnamed Student"}`, marginX, y);
+    y += 7;
+    doc.text(`Score: ${labResult.score}/${points}`, marginX, y);
+    y += 12;
+
+    doc.setFontSize(14);
+    doc.text("Results", marginX, y);
+    y += 8;
+    doc.setFontSize(11);
+
+    labResult.results.forEach((result, index) => {
+      ensureRoom(20);
+
+      doc.setFont("helvetica", "bold");
+      doc.text(
+        `${index + 1}. ${result.isCorrect ? "Correct" : "Incorrect"}`,
+        marginX,
+        y,
+      );
+      y += 6;
+
+      doc.setFont("helvetica", "normal");
+      const questionLines = doc.splitTextToSize(result.question, wrapWidth);
+      ensureRoom(questionLines.length * 6);
+      doc.text(questionLines, marginX, y);
+      y += questionLines.length * 6;
+
+      ensureRoom(6);
+      doc.text(`Your answer: ${result.yourAnswer}`, marginX, y);
+      y += 6;
+
+      if (!result.isCorrect) {
+        ensureRoom(6);
+        doc.text(`Correct answer: ${result.correctAnswer}`, marginX, y);
+        y += 6;
+      }
+
+      y += 4;
+    });
+
+    doc.save(`${title.replace(/\s+/g, "_")}_Results.pdf`);
+  };
 
   return (
     <CContainer className="lab-shell">
@@ -92,7 +186,7 @@ const LabLayout = ({
                 </CButton>
               ) : (
                 <CButton
-                  onClick={onStartLab}
+                  onClick={onStartPreLab}
                   className="lab-start-button"
                   style={{
                     backgroundColor: accentColor,
@@ -106,6 +200,37 @@ const LabLayout = ({
           </CCardBody>
         </CCard>
       </div>
+      <CModal
+        visible={showNamePrompt}
+        onClose={handleModalClose}
+        alignment="center"
+        className="lab-name-modal"
+      >
+        <CModalHeader>
+          <CModalTitle>Enter your name</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <CFormInput
+            id="lab-name-input"
+            type="text"
+            placeholder="Your name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            autoFocus
+          />
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={handleCancelNamePrompt}>
+            Cancel
+          </CButton>
+          <CButton
+            style={{ backgroundColor: accentColor, borderColor: accentColor }}
+            onClick={handleConfirmNamePrompt}
+          >
+            OK
+          </CButton>
+        </CModalFooter>
+      </CModal>
 
       {labResult && (
         <CModal
@@ -147,6 +272,17 @@ const LabLayout = ({
               ))}
             </ul>
           </CModalBody>
+          <CModalFooter>
+            <CButton
+              style={{
+                backgroundColor: accentColor,
+                borderColor: accentColor,
+              }}
+              onClick={handleExportPdf}
+            >
+              Export as PDF
+            </CButton>
+          </CModalFooter>
         </CModal>
       )}
 

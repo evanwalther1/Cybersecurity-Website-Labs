@@ -24,15 +24,29 @@
   height: 100%;
 }
 
+.practice-role-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
 .practice-role {
   margin: 0;
-  padding-bottom: 0.75rem;
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--cui-secondary-color);
   text-align: center;
+}
+
+.practice-restart {
+  position: absolute;
+  right: 0;
+  font-size: 0.75rem;
 }
 
 .practice-content {
@@ -46,11 +60,21 @@
   padding-right: 0.5rem;
 }
 
+.practice-question-block {
+  text-align: center;
+}
+
 .practice-question {
   font-size: 1.15rem;
   font-weight: 600;
   margin: 0;
   text-align: center;
+}
+
+.practice-question-weight {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--cui-secondary-color);
 }
 
 .practice-choices {

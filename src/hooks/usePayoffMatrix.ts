@@ -102,7 +102,7 @@ export const asPercent = (value: number): string =>
   `${(value * 100).toFixed(1)}%`;
 
 export function usePayoffMatrix() {
-  const [matrix] = useState<Payoff[][]>(generateMatrix);
+  const [matrix, setMatrix] = useState<Payoff[][]>(generateMatrix);
   const [isDisabled, setDisabled] = useState(true);
   const [clickedCell, setClickedCell] = useState<ClickedCell | null>(null);
   const [clickedElement, setClickedElement] = useState<ClickedElement | null>(
@@ -144,6 +144,11 @@ export function usePayoffMatrix() {
     setHighlightedServer(null);
   };
 
+  const resetMatrix = () => {
+    setMatrix(generateMatrix());
+    clearSelection();
+  };
+
   const handleElementClick = (
     event: React.MouseEvent,
     row: number,
@@ -161,6 +166,7 @@ export function usePayoffMatrix() {
     setDisabled,
     clickedCell,
     clearSelection,
+    resetMatrix,
     clickedElement,
     highlightedServer,
     highlightServer,

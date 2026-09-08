@@ -26,7 +26,6 @@ const Sidebar = () => {
             alt="Boise State University"
             className="sidebar-brand-icon"
           />
-          {/* <span className="d-sidebar-narrow-none">BSU Labs</span> */}
         </CSidebarBrand>
       </CSidebarHeader>
 
@@ -46,11 +45,13 @@ const Sidebar = () => {
             Lab 1
           </CNavLink>
         </CNavItem>
-        <CNavItem href="#">
-          <span className="nav-icon">
-            <span className="nav-icon-bullet"></span>
-          </span>{" "}
-          Lab 2
+        <CNavItem>
+          <CNavLink as={NavLink} to="/lab2">
+            <span className="nav-icon">
+              <span className="nav-icon-bullet"></span>
+            </span>{" "}
+            Lab 2
+          </CNavLink>
         </CNavItem>
         <CNavItem href="#">
           <span className="nav-icon">

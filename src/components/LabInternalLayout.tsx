@@ -77,9 +77,7 @@ export const LabInternalLayout = ({
       <CTabs defaultActiveItemKey="example">
         <CTabList variant="tabs" className="lab-tab-list">
           <CTab itemKey="example">Example</CTab>
-          <CTab itemKey="practice" disabled={!hasCompleted}>
-            Practice
-          </CTab>
+          <CTab itemKey="practice">Practice</CTab>
         </CTabList>
         <CTabContent className="lab-tab-content">
           <CTabPanel itemKey="example" className="lab-tab-panel">

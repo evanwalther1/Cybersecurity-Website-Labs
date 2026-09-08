@@ -61,6 +61,19 @@ const buildPercentChoices = (
     if (distractors.length === 3) break;
   }
 
+  let guard = 0;
+  while (distractors.length < 3 && guard < 100) {
+    const randomOffset =
+      (0.1 + Math.random() * 0.4) * (Math.random() < 0.5 ? -1 : 1);
+    const randomLabel = asPercent(
+      Math.max(0, Math.min(1, correct + randomOffset)),
+    );
+    if (randomLabel !== correctLabel && !distractors.includes(randomLabel)) {
+      distractors.push(randomLabel);
+    }
+    guard += 1;
+  }
+
   return {
     choices: shuffle([correctLabel, ...distractors]),
     correctAnswer: correctLabel,
@@ -123,7 +136,7 @@ const generatePages = (): Page[] => [
           },
           correctAnswer: {
             defender: "Defend Server 1",
-            attacker: "Attack Server 1",
+            attacker: "Attack Server 2",
           },
           weight: 10,
         },
@@ -146,8 +159,12 @@ const generatePages = (): Page[] => [
         },
         {
           question: {
-            defender: "What is the Mixed Nash Equilibrium for the Defender?",
-            attacker: "What is the Mixed Nash Equilibrium for the Attacker?",
+            defender:
+              "What is the Mixed-Strategy Nash Equilibrium probability (p) " +
+              "that the Defender defends Server 1?",
+            attacker:
+              "What is the Mixed-Strategy Nash Equilibrium probability (q) " +
+              "that the Attacker attacks Server 1?",
           },
           choices: {
             defender: mixedAttackerChoices.choices,
@@ -202,6 +219,7 @@ export const PracticeLab1 = ({ onSubmit }: Props) => {
     isElementSelected,
     handleCellClick,
     handleElementClick,
+    resetMatrix,
   } = usePayoffMatrix();
 
   const [isDefender, setIsDefender] = useState<boolean | null>(null);
@@ -251,6 +269,14 @@ export const PracticeLab1 = ({ onSubmit }: Props) => {
       return;
     }
     setStepIndex((index) => index - 1);
+  };
+
+  const handleRestart = () => {
+    resetMatrix();
+    setIsDefender(null);
+    setStepIndex(0);
+    setSelectedAnswers(new Map<number, string>());
+    setExplanation("");
   };
 
   return (
@@ -353,12 +379,30 @@ export const PracticeLab1 = ({ onSubmit }: Props) => {
           </div>
         ) : (
           <div className="practice-walkthrough">
-            <p className="practice-role">
-              Playing as {isDefender ? "Defender" : "Attacker"}
-            </p>
+            <div className="practice-role-row">
+              <p className="practice-role">
+                Playing as {isDefender ? "Defender" : "Attacker"}
+              </p>
+              <CButton
+                color="danger"
+                variant="outline"
+                size="sm"
+                className="practice-restart"
+                onClick={handleRestart}
+              >
+                Restart
+              </CButton>
+            </div>
 
             <div className="practice-content">
-              <p className="practice-question">{currentStep.question[role]}</p>
+              <div className="practice-question-block">
+                <p className="practice-question">
+                  {currentStep.question[role]}
+                </p>
+                <p className="practice-question-weight">
+                  ({currentStep.weight} pts)
+                </p>
+              </div>
 
               <div className="practice-choices">
                 {currentStep.choices[role].map((choice) => (

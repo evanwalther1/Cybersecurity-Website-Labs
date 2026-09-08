@@ -80,6 +80,19 @@
   margin-top: 1rem;
 }
 
+.dynamic-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.dynamic-intro-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--cui-body-color);
+}
+
 .dynamic-finish {
   display: flex;
   flex-direction: column;
@@ -146,6 +159,13 @@
 
 .mix-label {
   margin-left: 0.3rem;
+  font-weight: 700;
+  color: #4dabf7;
+}
+
+.mix-percent {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #4dabf7;
 }

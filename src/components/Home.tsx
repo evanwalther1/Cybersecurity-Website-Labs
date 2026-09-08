@@ -27,7 +27,7 @@ interface LabSummary {
 
 const labs: LabSummary[] = [
   {
-    title: "Lab 1: Introduction to Game Theory",
+    title: "Lab 1: Zero-Sum Game (Normal Form)",
     description:
       "Best response, pure Nash equilibrium, mixed Nash equilibrium, maxmin, and minmax.",
     icon: cilBalanceScale,
