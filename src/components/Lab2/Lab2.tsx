@@ -1,4 +1,4 @@
-import { cilBalanceScale } from "@coreui/icons";
+import { cilPuzzle } from "@coreui/icons";
 import ReactDOM from "react-dom";
 import { useState } from "react";
 import "../../styles/LabWindow.css";
@@ -9,15 +9,15 @@ import { LabInternalLayout } from "../LabInternalLayout";
 const labProps = {
   title: "Lab 2: Non Zero-Sum Game (Normal Form)",
   objectives: [
-    "Find a player's best response to an opponent's strategy.",
-    "Identify pure Nash equilibrium",
-    "Identify mixed Nash equilibrium in a game.",
-    "Apply the maxmin strategy to a game.",
-    "Apply the minmax strategy to a game.",
+    "Understand how a non-zero-sum game differs from a zero-sum game.",
+    "Account for honeypot cost (Ch) and exploit cost (Ce) in each player's payoff.",
+    "Analyze a 3x3 payoff matrix that includes a 'No Action' strategy for each player.",
+    "Customize game parameters (S1, S2, Ch, Ce) and see how they affect the equilibria.",
+    "Apply Best Response, Pure/Mixed Nash Equilibrium, Maxmin, and Minmax to a more complex game.",
   ],
   points: 100,
-  icon: cilBalanceScale,
-  accentColor: "#4dabf7",
+  icon: cilPuzzle,
+  accentColor: "#20c997",
 };
 
 const Lab2 = () => {
@@ -40,7 +40,14 @@ const Lab2 = () => {
       {...labProps}
     >
       {isPlaying &&
-        ReactDOM.createPortal(<></>, document.getElementById("portal")!)}
+        ReactDOM.createPortal(
+          <LabInternalLayout
+            onClose={() => setIsPlaying(false)}
+            onLabComplete={handleLabComplete}
+            LabNum={2}
+          ></LabInternalLayout>,
+          document.getElementById("portal")!,
+        )}
     </LabLayout>
   );
 };

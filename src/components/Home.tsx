@@ -18,6 +18,8 @@ import {
   cilBug,
 } from "@coreui/icons";
 import "../styles/Home.css";
+import { NavLink } from "react-router-dom";
+import { CNavLink } from "@coreui/react";
 
 interface LabSummary {
   title: string;
@@ -29,12 +31,13 @@ const labs: LabSummary[] = [
   {
     title: "Lab 1: Zero-Sum Game (Normal Form)",
     description:
-      "Best response, pure Nash equilibrium, mixed Nash equilibrium, maxmin, and minmax.",
+      "Best response, pure Nash Equilibrium, mixed Nash Equilibrium, maxmin, and minmax.",
     icon: cilBalanceScale,
   },
   {
-    title: "Lab 2",
-    description: "Concepts for this lab are still being defined.",
+    title: "Lab 2: Non Zero-Sum Game (Normal Form)",
+    description:
+      "Best response, pure Nash equilibrium, mixed Nash Equilibrium, maxmin, and minmax",
     icon: cilPuzzle,
   },
   {
@@ -77,15 +80,17 @@ const Home = () => {
       </div>
 
       <CRow className="justify-content-center g-4 home-lab-grid">
-        {labs.map((lab) => (
+        {labs.map((lab, index) => (
           <CCol xs={12} sm={6} lg={4} key={lab.title}>
-            <CCard className="h-100 text-center lab-card">
-              <CCardBody>
-                <CIcon icon={lab.icon} size="xxl" className="lab-card-icon" />
-                <CCardTitle>{lab.title}</CCardTitle>
-                <CCardText>{lab.description}</CCardText>
-              </CCardBody>
-            </CCard>
+            <CNavLink as={NavLink} to={`/lab${index + 1}`}>
+              <CCard className="h-100 text-center lab-card">
+                <CCardBody>
+                  <CIcon icon={lab.icon} size="xxl" className="lab-card-icon" />
+                  <CCardTitle>{lab.title}</CCardTitle>
+                  <CCardText>{lab.description}</CCardText>
+                </CCardBody>
+              </CCard>
+            </CNavLink>
           </CCol>
         ))}
       </CRow>

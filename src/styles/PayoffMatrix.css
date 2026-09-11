@@ -26,7 +26,7 @@
 }
 
 .lab-graph-lines line {
-  stroke: var(--cui-border-color, #9aa2ab);
+  stroke: #f5f6f7;
   stroke-width: 2;
 }
 

@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { CBadge, CButton, CFormTextarea } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import { cilArrowLeft, cilArrowRight } from "@coreui/icons";
-import "../styles/PayoffMatrix.css";
-import "../styles/LabPanel.css";
-import "../styles/PracticeLab1.css";
+import "../../styles/PayoffMatrix.css";
+import "../../styles/LabPanel.css";
+import "../../styles/PracticeLab1.css";
 import {
   usePayoffMatrix,
   asPercent,
@@ -14,9 +14,9 @@ import {
   calculateAttackerMaxmin,
   calculateDefenderMinmax,
   calculateAttackerMinmax,
-} from "../hooks/usePayoffMatrix";
-import type { Payoff } from "../hooks/usePayoffMatrix";
-import type { LabResult } from "../types/labResult";
+} from "../../hooks/usePayoffMatrix";
+import type { Payoff } from "../../hooks/usePayoffMatrix";
+import type { LabResult } from "../../types/labResult";
 
 interface Props {
   onSubmit: (result: LabResult) => void;

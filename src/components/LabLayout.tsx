@@ -50,12 +50,6 @@ const LabLayout = ({
     setShowNamePrompt(true);
   };
 
-  // CoreUI's CModal calls `onClose` on every visible -> false transition,
-  // not just when the user dismisses it (backdrop click/Escape) - so it
-  // also fires right after handleConfirmNamePrompt below closes the modal
-  // programmatically. Keep this handler limited to "the modal finished
-  // closing, sync our state" and never clear `name` here, or confirming
-  // would immediately wipe out the name that was just entered.
   const handleModalClose = () => {
     setShowNamePrompt(false);
   };

@@ -3,7 +3,7 @@ import "./styles/App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./components/Home";
-import { Lab1 } from "./components/Lab1";
+import { Lab1 } from "./components/Lab1/Lab1";
 import Lab2 from "./components/Lab2/Lab2";
 function App() {
   //const [count, setCount] = useState(0)

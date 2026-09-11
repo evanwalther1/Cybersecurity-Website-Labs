@@ -15,21 +15,24 @@ import {
 import CIcon from "@coreui/icons-react";
 import { cilWarning } from "@coreui/icons";
 import "../styles/LabInternalLayout.css";
-import { ExampleLab1 } from "./ExampleLab1";
-import { PracticeLab1 } from "./PracticeLab1";
+import { ExampleLab1 } from "./Lab1/ExampleLab1";
+import { ExampleLab2 } from "./Lab2/ExampleLab2";
+import { PracticeLab1 } from "./Lab1/PracticeLab1";
+import { PracticeLab2 } from "./Lab2/PracticeLab2";
 import { useState } from "react";
 import type { LabResult } from "../types/labResult";
 
 interface LabInternalLayoutProps {
   onClose: () => void;
   onLabComplete: (result: LabResult) => void;
+  LabNum: number;
 }
 
 export const LabInternalLayout = ({
   onClose,
   onLabComplete,
+  LabNum,
 }: LabInternalLayoutProps) => {
-  const [hasCompleted, setHasCompleted] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   const handleConfirmClose = () => {
@@ -81,10 +84,14 @@ export const LabInternalLayout = ({
         </CTabList>
         <CTabContent className="lab-tab-content">
           <CTabPanel itemKey="example" className="lab-tab-panel">
-            <ExampleLab1 setHasCompleted={setHasCompleted} />
+            {LabNum == 1 ? <ExampleLab1 /> : <ExampleLab2 />}
           </CTabPanel>
           <CTabPanel itemKey="practice" className="lab-tab-panel">
-            <PracticeLab1 onSubmit={onLabComplete} />
+            {LabNum == 1 ? (
+              <PracticeLab1 onSubmit={onLabComplete} />
+            ) : (
+              <PracticeLab2 onSubmit={onLabComplete} />
+            )}
           </CTabPanel>
         </CTabContent>
       </CTabs>

@@ -39,7 +39,7 @@ React, Typescript, HTML, CSS, possibly Python possibly javascript (althought typ
 ## Game Theory Concepts we will explor
 
 Lab 1: Best Response, Pure Nash Equilibrium, Mixed Nash Equilibrium, Maxmin, MinMax
-Lab 2:
+Lab 2: Best Response, Pure Nash Equilibrium, Mixed Nash Equilibrium, Maxmin, MinMax (same concepts as Lab 1, applied to a non-zero-sum game)
 Lab 4:
 Lab 5:
 Lab 6:
@@ -74,3 +74,27 @@ Lab 7:
 // What is the Maxmin
 
 // //MinMax
+
+## Lab2 info
+
+Lab 2 asks the same category of questions as Lab 1 (Best Response, Pure N.E., Mixed N.E., Maxmin, Minmax), but the underlying game is non-zero-sum instead of zero-sum, which makes it meaningfully more complex.
+
+There is still a Defender and an Attacker, but two new cost variables are introduced:
+- `Ch` — the Defender's cost of running a honeypot.
+- `Ce` — the Attacker's cost of executing an exploit.
+
+These feed into each player's result (payoff) via two separate equations (notably NOT symmetric/opposite like Lab 1's zero-sum payoffs, since this is non-zero-sum):
+- `Rd = (Sz - D - Ch)` — the Defender's result equals the value of the server being targeted (`Sz`, i.e. `S1` or `S2` depending on which server is in play) minus the damage done (`D`) minus the honeypot cost (`Ch`).
+- `Ra = (D - Ce)` — the Attacker's result equals the damage done (`D`) minus the cost of the exploit (`Ce`).
+
+Because both players now also have the option to take no action, the payoff matrix grows from Lab 1's 2x2 (Defend S1/S2 x Attack S1/S2) to a **3x3 matrix**: Defend S1 / Defend S2 / No Action (Defender) crossed with Attack S1 / Attack S2 / No Action (Attacker).
+
+**Value customization**: Lab 2 introduces user-adjustable game parameters. At the start of both the Example and Practice sections, four slider bars let the user set `S1`, `S2`, `Ch`, and `Ce` themselves before working through the lab, with these constraints:
+- `S1`: from `Ch + 1` to `50` (must exceed the honeypot cost).
+- `S2`: from `Ch + 1` to `50` (must exceed the honeypot cost).
+- `Ch`: from `1` to `10`.
+- `Ce`: from `1` to `10`.
+
+(`S1`/`S2`'s lower bound depends on `Ch`'s current slider value, so the sliders aren't fully independent of each other.)
+
+More Lab 2 details TBD as it's built out.

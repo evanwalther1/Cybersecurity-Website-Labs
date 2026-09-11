@@ -7,9 +7,9 @@ import {
   cilCheckCircle,
   cilLightbulb,
 } from "@coreui/icons";
-import "../styles/PayoffMatrix.css";
-import "../styles/LabPanel.css";
-import "../styles/ExampleLab1.css";
+import "../../styles/PayoffMatrix.css";
+import "../../styles/LabPanel.css";
+import "../../styles/ExampleLab1.css";
 import {
   usePayoffMatrix,
   asPercent,
@@ -19,12 +19,9 @@ import {
   calculateAttackerMaxmin,
   calculateDefenderMinmax,
   calculateAttackerMinmax,
-} from "../hooks/usePayoffMatrix";
-import type { Payoff } from "../hooks/usePayoffMatrix";
+} from "../../hooks/usePayoffMatrix";
+import type { Payoff } from "../../hooks/usePayoffMatrix";
 
-interface Props {
-  setHasCompleted: (value: boolean) => void;
-}
 interface Step {
   question: string[];
   response: (matrix: Payoff[][]) => React.ReactNode[];
@@ -288,7 +285,7 @@ const generatePages = (): Page[] => [
   },
 ];
 
-export const ExampleLab1 = ({ setHasCompleted }: Props) => {
+export const ExampleLab1 = () => {
   const {
     matrix,
     isDisabled,
@@ -348,11 +345,6 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
     }
   };
   useEffect(() => {
-    // The intro screen manages its own highlight (see the effect above) -
-    // skip this one entirely while it's showing, otherwise this effect
-    // still runs on mount (pageIndex/stepIndex are "new" then too) and its
-    // `else` branch clears the selection the intro effect just set, since
-    // nothing is revealed yet at page 0 / step 0.
     if (showIntro) {
       return;
     }
@@ -380,7 +372,6 @@ export const ExampleLab1 = ({ setHasCompleted }: Props) => {
       return;
     }
     if (isLastStepInPage && isLastPage) {
-      setHasCompleted(true);
       setIsComplete(true);
       return;
     }

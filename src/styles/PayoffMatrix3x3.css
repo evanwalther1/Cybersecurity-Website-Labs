@@ -1,0 +1,40 @@
+/* Extends PayoffMatrix.css (still imported alongside this file) for a 3x3
+   grid instead of 2x2 - .matrix-cell, .tuple-element, .matrix-sub-header,
+   .matrix-axis-label, and .matrix-legend are all reused as-is from there,
+   since a cell/label looks the same regardless of how many rows/columns
+   surround it. Only the grid container itself and the axis-label spans
+   need a 3-column/3-row version. */
+
+.payoff-matrix-3x3 {
+  display: grid;
+  grid-template-columns: auto auto repeat(3, 1fr);
+  grid-template-rows: auto auto repeat(3, auto);
+  gap: 0.5rem;
+  align-items: stretch;
+  margin: 0 auto;
+  transform: translateX(-1rem);
+  width: 100%;
+  max-width: 34rem;
+}
+
+.matrix-axis-attacker-3x3 {
+  grid-column: 3 / span 3;
+  grid-row: 1;
+}
+
+.matrix-axis-defender-3x3 {
+  grid-column: 1;
+  grid-row: 3 / span 3;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.matrix-col-sub-3 {
+  grid-column: 5;
+  grid-row: 2;
+}
+
+.matrix-row-sub-3 {
+  grid-column: 2;
+  grid-row: 5;
+}

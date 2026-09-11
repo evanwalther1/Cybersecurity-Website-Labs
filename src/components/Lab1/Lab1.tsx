@@ -1,10 +1,10 @@
-import LabLayout from "./LabLayout";
-import { LabInternalLayout } from "./LabInternalLayout";
+import LabLayout from "../LabLayout";
+import { LabInternalLayout } from "../LabInternalLayout";
 import { cilBalanceScale } from "@coreui/icons";
 import ReactDOM from "react-dom";
 import { useState } from "react";
-import "../styles/LabWindow.css";
-import type { LabResult } from "../types/labResult";
+import "../../styles/LabWindow.css";
+import type { LabResult } from "../../types/labResult";
 
 const labProps = {
   title: "Lab 1: Zero-Sum Game (Normal Form)",
@@ -44,6 +44,7 @@ export const Lab1 = () => {
           <LabInternalLayout
             onClose={() => setIsPlaying(false)}
             onLabComplete={handleLabComplete}
+            LabNum={1}
           ></LabInternalLayout>,
           document.getElementById("portal")!,
         )}
