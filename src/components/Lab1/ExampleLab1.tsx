@@ -608,7 +608,7 @@ export const ExampleLab1 = () => {
                   </ul>
                 </div>
                 <p className="dynamic-finish-subtitle">
-                  Practice is now open to work through these concepts yourself.
+                  Practice is open to work through these concepts yourself.
                 </p>
               </div>
             ) : (

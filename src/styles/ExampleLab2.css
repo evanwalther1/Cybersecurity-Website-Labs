@@ -1,0 +1,100 @@
+/* Lab 2's accent is green (#20c997) instead of Lab 1's blue (#4dabf7) -
+   this file holds every Lab 2-specific override, layered on top of the
+   shared dynamic-*/matrix-* classes from ExampleLab1.css/PayoffMatrix.css.
+   Keep using #20c997 for anything new added to Lab 2 so it stays visually
+   distinct from Lab 1. */
+
+.lab2-slider-label {
+  margin: 1rem 0 0.35rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #20c997;
+}
+
+.lab2-slider-label:first-of-type {
+  margin-top: 1.25rem;
+}
+
+/* .static-lab/.lab-graph are shared with Lab 1 (PayoffMatrix.css), so this
+   is scoped under .lab2-static-lab rather than edited there directly -
+   Lab 1 has no variables panel and shouldn't have its graph nudged. */
+.lab2-static-lab {
+  position: relative;
+}
+
+.lab2-variables-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 6rem;
+  padding: 0.6rem 0.85rem;
+  background: var(--cui-tertiary-bg);
+  border: 1px solid rgba(32, 201, 151, 0.35);
+  border-radius: 0.5rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
+.lab2-variables-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.lab2-variables-label {
+  font-weight: 700;
+  color: #20c997;
+}
+
+.lab2-variables-value {
+  color: #f5f6f7;
+  font-weight: 600;
+}
+
+/* PayoffMatrix.css/ExampleLab1.css hardcode Lab 1's blue (#4dabf7) on the
+   graph node borders, the matrix hover/selected states, and the walkthrough
+   headings/definition box. Rather than editing those shared files (which
+   would turn Lab 1 green too), every one of those is overridden here,
+   scoped under .lab2-static-lab (left column) / .lab2-dynamic (right
+   column) so only Lab 2 picks up green. */
+.lab2-static-lab .graph-node {
+  border-color: #20c997;
+}
+
+.lab2-static-lab .matrix-cell:hover {
+  border-color: #20c997;
+}
+
+.lab2-static-lab .matrix-cell.selected {
+  border-color: #20c997;
+}
+
+[data-coreui-theme="dark"] .lab2-static-lab .matrix-cell.selected {
+  background: rgba(32, 201, 151, 0.18);
+}
+
+.lab2-static-lab .matrix-sub-header.selected {
+  background: #20c997;
+}
+
+[data-coreui-theme="dark"] .lab2-dynamic .dynamic-definition {
+  background: rgba(32, 201, 151, 0.1);
+  border-color: rgba(32, 201, 151, 0.35);
+}
+
+.lab2-dynamic .dynamic-definition-icon {
+  color: #20c997;
+}
+
+.lab2-dynamic .dynamic-topic {
+  color: #20c997;
+}
+
+.lab2-dynamic .concepts-learned-title {
+  color: #20c997;
+}
