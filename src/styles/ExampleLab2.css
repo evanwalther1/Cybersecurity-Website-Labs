@@ -17,6 +17,12 @@
   margin-top: 1.25rem;
 }
 
+.lab2-slider-error {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--cui-danger);
+}
+
 /* .static-lab/.lab-graph are shared with Lab 1 (PayoffMatrix.css), so this
    is scoped under .lab2-static-lab rather than edited there directly -
    Lab 1 has no variables panel and shouldn't have its graph nudged. */
@@ -82,6 +88,14 @@
   background: #20c997;
 }
 
+.lab2-static-lab .mix-label {
+  color: #20c997;
+}
+
+.lab2-static-lab .mix-percent {
+  color: #20c997;
+}
+
 [data-coreui-theme="dark"] .lab2-dynamic .dynamic-definition {
   background: rgba(32, 201, 151, 0.1);
   border-color: rgba(32, 201, 151, 0.35);
@@ -97,4 +111,16 @@
 
 .lab2-dynamic .concepts-learned-title {
   color: #20c997;
+}
+
+.lab2-dynamic .practice-choice:hover {
+  border-color: #20c997;
+}
+
+.lab2-dynamic .practice-choice.selected {
+  border-color: #20c997;
+}
+
+[data-coreui-theme="dark"] .lab2-dynamic .practice-choice.selected {
+  background: rgba(32, 201, 151, 0.18);
 }

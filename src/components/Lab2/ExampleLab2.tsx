@@ -20,6 +20,12 @@ const LAB2_ACCENT = "#20c997";
 // ExampleLab2 isn't sharing that hook yet (its matrix is 3x3, not 2x2).
 const asPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
 
+// Floating-point arithmetic on non-integer probabilities (e.g. 0.3 * 38)
+// can land on values like 13.999999999999998 instead of a clean 14 - round
+// to at most 2 decimal places for display, dropping trailing zeros since
+// this returns a number, not a padded string.
+const roundTo2 = (value: number): number => Math.round(value * 100) / 100;
+
 const lab2SliderSx = {
   color: LAB2_ACCENT,
   height: 8,
@@ -59,7 +65,8 @@ interface Step {
   question: string[];
   response: (matrix: Payoff3x3[][]) => React.ReactNode[];
   highlightCell?: { row: number; col: number };
-  highlightServer?: { player: "defender" | "attacker"; server: 1 | 2 };
+  // server 3 = "No Action", alongside the two real servers.
+  highlightServer?: { player: "defender" | "attacker"; server: 1 | 2 | 3 };
 }
 
 interface Page {
@@ -105,6 +112,7 @@ const generatePages = (): Page[] => [
           ];
         },
         highlightCell: { row: 2, col: 2 },
+        highlightServer: { player: "defender", server: 3 },
       },
       {
         question: [
@@ -120,14 +128,20 @@ const generatePages = (): Page[] => [
           const noActionVsDefendS1 = matrix[0][2].attacker ?? 0;
           const noActionVsDefendS2 = matrix[1][2].attacker ?? 0;
 
-          const evAttackS1 = p1 * attackS1vsDefendS1 + p2 * attackS1vsDefendS2;
-          const evAttackS2 = p1 * attackS2vsDefendS1 + p2 * attackS2vsDefendS2;
-          const evNoAction = p1 * noActionVsDefendS1 + p2 * noActionVsDefendS2;
+          const evAttackS1 = roundTo2(
+            p1 * attackS1vsDefendS1 + p2 * attackS1vsDefendS2,
+          );
+          const evAttackS2 = roundTo2(
+            p1 * attackS2vsDefendS1 + p2 * attackS2vsDefendS2,
+          );
+          const evNoAction = roundTo2(
+            p1 * noActionVsDefendS1 + p2 * noActionVsDefendS2,
+          );
 
           return [
-            "Since the Defender is mixing between two strategies, the Attacker's Best Response is whichever pure strategy gives the highest expected payoff against that mix - found by multiplying each matchup's payoff by the probability of the Defender playing that strategy, then adding them up.",
-            `Attack Server 1: E[Ra] = (0.7)(${attackS1vsDefendS1}) + (0.3)(${attackS1vsDefendS2}) = ${p1 * attackS1vsDefendS1} + ${p2 * attackS1vsDefendS2} = ${evAttackS1}.`,
-            `Attack Server 2: E[Ra] = (0.7)(${attackS2vsDefendS1}) + (0.3)(${attackS2vsDefendS2}) = ${p1 * attackS2vsDefendS1} + ${p2 * attackS2vsDefendS2} = ${evAttackS2}.`,
+            "Since the Defender is mixing between two strategies, the Attacker's Best Response is whichever pure strategy gives the highest expected payoff against that mix, found by multiplying each matchup's payoff by the probability of the Defender playing that strategy, then adding them up.",
+            `Attack Server 1: E[Ra] = (0.7)(${attackS1vsDefendS1}) + (0.3)(${attackS1vsDefendS2}) = ${roundTo2(p1 * attackS1vsDefendS1)} + ${roundTo2(p2 * attackS1vsDefendS2)} = ${evAttackS1}.`,
+            `Attack Server 2: E[Ra] = (0.7)(${attackS2vsDefendS1}) + (0.3)(${attackS2vsDefendS2}) = ${roundTo2(p1 * attackS2vsDefendS1)} + ${roundTo2(p2 * attackS2vsDefendS2)} = ${evAttackS2}.`,
             `No Action: E[Ra] = (0.7)(${noActionVsDefendS1}) + (0.3)(${noActionVsDefendS2}) = ${evNoAction}.`,
             <>
               The highest expected payoff is{" "}
@@ -137,10 +151,9 @@ const generatePages = (): Page[] => [
                 Best Response is to attack Server 2
               </strong>
               . Attacking Server 1 outright wins big on the 30% of the time the
-              Defender happens to guess Server 2 ({attackS1vsDefendS2}), but the
-              Defender is defending Server 1 too often (70%) for that to pay off
-              on average - Server 2 is the safer bet against this particular
-              mix.
+              Defender happens to guess Server 2 (30%), but the Defender is
+              defending Server 1 too often (70%) for that to pay off on average
+              , therefore Server 2 is the safer bet against this particular mix.
             </>,
           ];
         },
@@ -152,7 +165,7 @@ const generatePages = (): Page[] => [
     topic: "Pure Nash Equilibrium",
     definition: [
       "A Pure Nash Equilibrium is a stable outcome where both players commit to one specific strategy, and neither player can improve their own payoff by unilaterally switching to a different strategy, given what the other player is doing.",
-      "Unlike Lab 1's zero-sum game - where a Pure Nash Equilibrium never exists, no matter the payoff values - whether one exists here depends on the specific values chosen for S1, S2, Ch, and Ce. It isn't guaranteed to be absent (or present); it has to be checked for each configuration.",
+      "Unlike Lab 1's zero-sum game where a Pure Nash Equilibrium never exists, no matter the payoff values whether one exists here depends on the specific values chosen for S1, S2, Ch, and Ce. It isn't guaranteed to be absent (or present), it has to be checked for each configuration.",
     ],
     steps: [
       {
@@ -164,9 +177,9 @@ const generatePages = (): Page[] => [
             matrix[row][col].attacker ?? 0;
 
           return [
-            "To check for a Pure Nash Equilibrium, look for one cell where neither player wants to unilaterally switch strategies - a cell that's simultaneously the Defender's best response to the Attacker's column AND the Attacker's best response to the Defender's row.",
+            "To check for a Pure Nash Equilibrium, look for one cell where neither player wants to switch strategies, a cell that's simultaneously the Defender's best response to the Attacker's column AND the Attacker's best response to the Defender's row.",
             `First, find the Defender's best response to each of the Attacker's three strategies (the highest Rd in each column): against Attack S1, the best is Defend S1 (${rd(0, 0)} beats ${rd(1, 0)} and ${rd(2, 0)}); against Attack S2, the best is Defend S2 (${rd(1, 1)} beats ${rd(0, 1)} and ${rd(2, 1)}); against No Action, the best is No Action (${rd(2, 2)} beats ${rd(0, 2)} and ${rd(1, 2)}).`,
-            `Now check whether the Attacker is also happy with their choice in each of those three candidate cells (the highest Ra in that row): at (Defend S1, Attack S1) the Attacker earns ${ra(0, 0)}, but attacking Server 2 instead would earn ${ra(0, 1)} - better, so this cell isn't stable. At (Defend S2, Attack S2) the Attacker earns ${ra(1, 1)}, but attacking Server 1 instead would earn ${ra(1, 0)} - also better, so this isn't stable either. At (No Action, No Action) the Attacker earns ${ra(2, 2)}, but attacking Server 1 instead would earn ${ra(2, 0)} - again better, so this isn't stable.`,
+            `Now check whether the Attacker is also happy with their choice in each of those three candidate cells (the highest Ra in that row): at (Defend S1, Attack S1) the Attacker earns ${ra(0, 0)}, but attacking Server 2 instead would earn ${ra(0, 1)} better, so this cell isn't stable. At (Defend S2, Attack S2) the Attacker earns ${ra(1, 1)}, but attacking Server 1 instead would earn ${ra(1, 0)} also better, so this isn't stable either. At (No Action, No Action) the Attacker earns ${ra(2, 2)}, but attacking Server 1 instead would earn ${ra(2, 0)} again better, so this isn't stable.`,
             <>
               None of the three candidate cells survive both checks, so{" "}
               <strong className="dynamic-highlight">
@@ -183,58 +196,236 @@ const generatePages = (): Page[] => [
   },
   {
     topic: "Mixed Nash Equilibrium",
-    definition: [""],
+    definition: [
+      "A Mixed Nash Equilibrium is an equilibrium where a player randomizes between two or more strategies according to specific probabilities, rather than committing to one, useful when no Pure Nash Equilibrium exists. Each player picks probabilities that make the other player indifferent between their own choices.",
+      "With three strategies available (Server 1, Server 2, No Action), a player's mix needs two free variables (e.x: p1 and p2 for the first two strategies, with the third being 1 - (p1 + p2)) since all three probabilities must add up to 1. Before assuming all three strategies are actually used, that three-variable system has to be solved and checked: if it produces a negative probability, that strategy isn't part of the equilibrium, and the problem reduces to two strategies instead.",
+    ],
     steps: [
       {
         question: [
-          "What is the Mixed-Strategy Nash Equilibrium probability for the Attacker (restricted to Attack S1 vs. Attack S2)?",
+          "What is the Mixed-Strategy Nash Equilibrium probability for the Attacker?",
         ],
         response: (matrix) => {
-          return [<></>];
+          const raDS1_AS1 = matrix[0][0].attacker ?? 0;
+          const raDS2_AS1 = matrix[1][0].attacker ?? 0;
+          const raNoneD_AS1 = matrix[2][0].attacker ?? 0;
+          const raDS1_AS2 = matrix[0][1].attacker ?? 0;
+          const raDS2_AS2 = matrix[1][1].attacker ?? 0;
+          const raNoneD_AS2 = matrix[2][1].attacker ?? 0;
+
+          const A1 = raDS1_AS1 - raNoneD_AS1;
+          const B1 = raDS2_AS1 - raNoneD_AS1;
+          const C1 = -raNoneD_AS1;
+          const A2 = raDS1_AS2 - raNoneD_AS2;
+          const B2 = raDS2_AS2 - raNoneD_AS2;
+          const C2 = -raNoneD_AS2;
+          const determinant = A1 * B2 - A2 * B1;
+          const d1 = (C1 * B2 - C2 * B1) / determinant;
+          const d2 = (A1 * C2 - A2 * C1) / determinant;
+          const d3 = 1 - d1 - d2;
+
+          const a = matrix[0][0].defender ?? 0; // Defend S1, Attack S1
+          const b = matrix[0][1].defender ?? 0; // Defend S1, Attack S2
+          const c = matrix[1][0].defender ?? 0; // Defend S2, Attack S1
+          const d = matrix[1][1].defender ?? 0; // Defend S2, Attack S2
+          const q = (d - b) / (a - b - c + d);
+
+          return [
+            "Before restricting to two strategies, check whether the Attacker could rationally use all three (Attack S1, Attack S2, No Action) at once. That requires some Defender strategy: d1 = P(Defend S1), d2 = P(Defend S2), d3 = 1 - (d1 + d2) = P(No Action), that leaves the Attacker exactly indifferent between all three of their own options.",
+            `Setting the Attacker's expected payoff from each strategy equal to their No Action payoff, which is always 0: ${raDS1_AS1}d1 + ${raDS2_AS1}d2 + ${raNoneD_AS1}d3 = 0 (from Attack S1), and ${raDS1_AS2}d1 + ${raDS2_AS2}d2 + ${raNoneD_AS2}d3 = 0 (from Attack S2).`,
+            `Substituting d3 = 1 - d1 - d2 and solving both equations together gives d1 = ${d1.toFixed(3)} and d2 = ${d2.toFixed(3)}.`,
+            <>
+              Checking feasibility: d3 = 1 - d1 - d2 ={" "}
+              <strong className="dynamic-highlight">{d3.toFixed(3)}</strong>.
+              Since d3 is negative, no such Defender strategy exists, the
+              probability p<sub>i</sub> &ge; 0 is violated. The Attacker can
+              never actually be made indifferent across all three of their own
+              strategies, so their equilibrium mix always concentrates on at
+              most two.
+            </>,
+            "Restricting to Attack S1 vs. Attack S2 (Lab 1's exact method): find the value of q (the probability of attacking Server 1, with (1-q) for Server 2) that makes the Defender indifferent between defending Server 1 and defending Server 2.",
+            `Expected payoff if the Defender defends Server 1: ${a}q + ${b}(1 - q)`,
+            `Expected payoff if the Defender defends Server 2: ${c}q + ${d}(1 - q)`,
+            `Set them equal: ${a}q + ${b}(1 - q) = ${c}q + ${d}(1 - q)`,
+            `Simplify: ${a - b}q + ${b} = ${c - d}q + ${d}`,
+            `Solve for q: ${a - b - (c - d)}q = ${d - b}`,
+            <>
+              q = <strong className="dynamic-highlight">{asPercent(q)}</strong>.
+              The Attacker should attack Server 1 with probability{" "}
+              {asPercent(q)} and Server 2 with probability {asPercent(1 - q)}.
+            </>,
+          ];
         },
       },
       {
         question: [
-          "What is the Mixed-Strategy Nash Equilibrium probability for the Defender (restricted to Defend S1 vs. Defend S2)?",
+          "What is the Mixed-Strategy Nash Equilibrium probability for the Defender?",
         ],
         response: (matrix) => {
-          return [<></>];
+          const e = matrix[0][0].attacker ?? 0; // Defend S1, Attack S1
+          const f = matrix[1][0].attacker ?? 0; // Defend S2, Attack S1
+          const g = matrix[0][1].attacker ?? 0; // Defend S1, Attack S2
+          const h = matrix[1][1].attacker ?? 0; // Defend S2, Attack S2
+          const p = (h - f) / (e - f - g + h);
+
+          return [
+            "Since the Attacker can never spread across all three of their strategies (shown in the previous step), there's no Attacker strategy capable of making the Defender indifferent across all three Defender strategies either, so the Defender's mix also reduces to two variables.",
+            "The same method applies to the Defender's mixing probability, p (the probability of defending Server 1, with (1-p) for Server 2), this time make the Attacker indifferent between attacking Server 1 and attacking Server 2.",
+            `Expected payoff if the Attacker attacks Server 1: ${e}p + ${f}(1 - p)`,
+            `Expected payoff if the Attacker attacks Server 2: ${g}p + ${h}(1 - p)`,
+            `Set them equal: ${e}p + ${f}(1 - p) = ${g}p + ${h}(1 - p)`,
+            `Simplify: ${e - f}p + ${f} = ${g - h}p + ${h}`,
+            `Solve for p: ${e - f - (g - h)}p = ${h - f}`,
+            <>
+              p = <strong className="dynamic-highlight">{asPercent(p)}</strong>.
+              The Defender should defend Server 1 with probability{" "}
+              {asPercent(p)} and Server 2 with probability {asPercent(1 - p)}.
+            </>,
+          ];
         },
       },
     ],
   },
   {
     topic: "Maxmin",
-    definition: ["In a non-zero sum game.."],
+    definition: [
+      "The Maxmin Strategy is a plan of action where a player chooses the option that maximizes their own minimum possible payoff. It addresses the cautious, worst-case scenario, for each strategy a player could choose, look at the worst possible outcome it could lead to, then pick whichever strategy makes that worst-case outcome as good as possible.",
+      "With three strategies (Server 1, Server 2, No Action) instead of Lab 1's two, the worst case for each strategy is now the minimum across all three of the opponent's responses, not just two.",
+    ],
     steps: [
       {
         question: ["What is the Maxmin value for the Defender?"],
-        response: (_matrix) => {
-          return [];
+        response: (matrix) => {
+          const rd = (row: number, col: number) =>
+            matrix[row][col].defender ?? 0;
+          const minDefendS1 = Math.min(rd(0, 0), rd(0, 1), rd(0, 2));
+          const minDefendS2 = Math.min(rd(1, 0), rd(1, 1), rd(1, 2));
+          const minNoAction = Math.min(rd(2, 0), rd(2, 1), rd(2, 2));
+          const maxmin = Math.max(minDefendS1, minDefendS2, minNoAction);
+          const bestStrategy =
+            maxmin === minDefendS1
+              ? "Defend Server 1"
+              : maxmin === minDefendS2
+                ? "Defend Server 2"
+                : "No Action";
+
+          return [
+            "To find the Maxmin value for the Defender, look at the worst-case payoff (the minimum across all three Attacker responses) for each of the Defender's own three strategies, then pick whichever strategy makes that worst case as good as possible.",
+            `Defend Server 1: worst case is min(${rd(0, 0)}, ${rd(0, 1)}, ${rd(0, 2)}) = ${minDefendS1}.`,
+            `Defend Server 2: worst case is min(${rd(1, 0)}, ${rd(1, 1)}, ${rd(1, 2)}) = ${minDefendS2}.`,
+            `No Action: worst case is min(${rd(2, 0)}, ${rd(2, 1)}, ${rd(2, 2)}) = ${minNoAction}.`,
+            <>
+              The best of these worst cases is{" "}
+              <strong className="dynamic-highlight">{maxmin}</strong>, this is
+              the Maxmin value. The maxmin strategy would therefore be to{" "}
+              <strong className="dynamic-highlight">{bestStrategy}</strong>,
+              guaranteeing at least this payoff no matter what the Attacker
+              does.
+            </>,
+          ];
         },
       },
       {
         question: ["What is the Maxmin value for the Attacker?"],
-        response: (_matrix) => {
-          return [];
+        response: (matrix) => {
+          const ra = (row: number, col: number) =>
+            matrix[row][col].attacker ?? 0;
+          const minAttackS1 = Math.min(ra(0, 0), ra(1, 0), ra(2, 0));
+          const minAttackS2 = Math.min(ra(0, 1), ra(1, 1), ra(2, 1));
+          const minNoAction = Math.min(ra(0, 2), ra(1, 2), ra(2, 2));
+          const maxmin = Math.max(minAttackS1, minAttackS2, minNoAction);
+          const bestStrategy =
+            maxmin === minAttackS1
+              ? "Attack Server 1"
+              : maxmin === minAttackS2
+                ? "Attack Server 2"
+                : "No Action";
+
+          return [
+            "The same method applies to the Attacker, using the Attacker's own payoffs against all three of the Defender's possible responses.",
+            `Attack Server 1: worst case is min(${ra(0, 0)}, ${ra(1, 0)}, ${ra(2, 0)}) = ${minAttackS1}.`,
+            `Attack Server 2: worst case is min(${ra(0, 1)}, ${ra(1, 1)}, ${ra(2, 1)}) = ${minAttackS2}.`,
+            `No Action: worst case is min(${ra(0, 2)}, ${ra(1, 2)}, ${ra(2, 2)}) = ${minNoAction}.`,
+            <>
+              The best of these worst cases is{" "}
+              <strong className="dynamic-highlight">{maxmin}</strong>, this is
+              the Maxmin value. The maxmin strategy would therefore be to{" "}
+              <strong className="dynamic-highlight">{bestStrategy}</strong>,
+              guaranteeing at least this payoff no matter what the Defender
+              does.
+            </>,
+          ];
         },
       },
     ],
   },
   {
     topic: "Minmax",
-    definition: [],
+    definition: [
+      "The Minmax Strategy is the opposite of maxmin, it's a plan of action that minimizes the maximum possible payoff of an opponent. This strategy effectively limits how much the opponent can gain no matter how they respond.",
+      "As with Maxmin, this now compares across all three of the opponent's strategies instead of two, and this is a different question from the Mixed Nash Equilibrium's optimal randomized strategy, it assumes a single fixed choice with no randomizing.",
+    ],
     steps: [
       {
         question: ["What is the Minmax value for the Defender?"],
-        response: (_matrix) => {
-          return [];
+        response: (matrix) => {
+          const ra = (row: number, col: number) =>
+            matrix[row][col].attacker ?? 0;
+          const maxDefendS1 = Math.max(ra(0, 0), ra(0, 1), ra(0, 2));
+          const maxDefendS2 = Math.max(ra(1, 0), ra(1, 1), ra(1, 2));
+          const maxNoAction = Math.max(ra(2, 0), ra(2, 1), ra(2, 2));
+          const minmax = Math.min(maxDefendS1, maxDefendS2, maxNoAction);
+          const bestStrategy =
+            minmax === maxDefendS1
+              ? "Defend Server 1"
+              : minmax === maxDefendS2
+                ? "Defend Server 2"
+                : "No Action";
+
+          return [
+            "To find the Minmax value for the Defender, look at the best payoff the Attacker could get in response to each of the Defender's three strategies, then choose whichever Defender strategy keeps that as small as possible.",
+            `If the Defender defends Server 1, the Attacker's best possible payoff is max(${ra(0, 0)}, ${ra(0, 1)}, ${ra(0, 2)}) = ${maxDefendS1}.`,
+            `If the Defender defends Server 2, the Attacker's best possible payoff is max(${ra(1, 0)}, ${ra(1, 1)}, ${ra(1, 2)}) = ${maxDefendS2}.`,
+            `If the Defender takes No Action, the Attacker's best possible payoff is max(${ra(2, 0)}, ${ra(2, 1)}, ${ra(2, 2)}) = ${maxNoAction}.`,
+            <>
+              The minimum of these is{" "}
+              <strong className="dynamic-highlight">{minmax}</strong>, this is
+              the Minmax value, therefore the Defender's Minmax strategy is{" "}
+              <strong className="dynamic-highlight">{bestStrategy}</strong>,
+              limiting the Attacker to at most this payoff.
+            </>,
+          ];
         },
       },
       {
         question: ["What is the Minmax value for the Attacker?"],
-        response: (_matrix) => {
-          return [];
+        response: (matrix) => {
+          const rd = (row: number, col: number) =>
+            matrix[row][col].defender ?? 0;
+          const maxAttackS1 = Math.max(rd(0, 0), rd(1, 0), rd(2, 0));
+          const maxAttackS2 = Math.max(rd(0, 1), rd(1, 1), rd(2, 1));
+          const maxNoAction = Math.max(rd(0, 2), rd(1, 2), rd(2, 2));
+          const minmax = Math.min(maxAttackS1, maxAttackS2, maxNoAction);
+          const bestStrategy =
+            minmax === maxAttackS1
+              ? "Attack Server 1"
+              : minmax === maxAttackS2
+                ? "Attack Server 2"
+                : "No Action";
+
+          return [
+            "The same method applies to the Attacker, look at the best payoff the Defender could get in response to each of the Attacker's three strategies, then choose whichever Attacker strategy keeps that as small as possible.",
+            `If the Attacker attacks Server 1, the Defender's best possible payoff is max(${rd(0, 0)}, ${rd(1, 0)}, ${rd(2, 0)}) = ${maxAttackS1}.`,
+            `If the Attacker attacks Server 2, the Defender's best possible payoff is max(${rd(0, 1)}, ${rd(1, 1)}, ${rd(2, 1)}) = ${maxAttackS2}.`,
+            `If the Attacker takes No Action, the Defender's best possible payoff is max(${rd(0, 2)}, ${rd(1, 2)}, ${rd(2, 2)}) = ${maxNoAction}.`,
+            <>
+              The minimum of these is{" "}
+              <strong className="dynamic-highlight">{minmax}</strong>, this is
+              the Minmax value, therefore the Attacker's Minmax strategy is{" "}
+              <strong className="dynamic-highlight">{bestStrategy}</strong>,
+              limiting the Defender to at most this payoff.
+            </>,
+          ];
         },
       },
     ],
@@ -253,7 +444,7 @@ interface ClickedCell {
 
 interface HighlightedServer {
   player: "defender" | "attacker";
-  server: 1 | 2;
+  server: 1 | 2 | 3;
 }
 
 const EXAMPLE_S1 = 45;
@@ -351,17 +542,38 @@ export const ExampleLab2 = () => {
 
   const hasBegun = matrix[0][0].defender !== null;
 
+  const isMixedNEPage = currentPage.topic === "Mixed Nash Equilibrium";
+  const showAttackerMix = isRevealed && isMixedNEPage && stepIndex === 0;
+  const showDefenderMix = isRevealed && isMixedNEPage && stepIndex === 1;
+  const mixedDefenderA = matrix[0][0].defender ?? 0; // Defend S1, Attack S1
+  const mixedDefenderB = matrix[0][1].defender ?? 0; // Defend S1, Attack S2
+  const mixedDefenderC = matrix[1][0].defender ?? 0; // Defend S2, Attack S1
+  const mixedDefenderD = matrix[1][1].defender ?? 0; // Defend S2, Attack S2
+  const mixedQ =
+    (mixedDefenderD - mixedDefenderB) /
+    (mixedDefenderA - mixedDefenderB - mixedDefenderC + mixedDefenderD);
+  const mixedAttackerE = matrix[0][0].attacker ?? 0; // Defend S1, Attack S1
+  const mixedAttackerF = matrix[1][0].attacker ?? 0; // Defend S2, Attack S1
+  const mixedAttackerG = matrix[0][1].attacker ?? 0; // Defend S1, Attack S2
+  const mixedAttackerH = matrix[1][1].attacker ?? 0; // Defend S2, Attack S2
+  const mixedP =
+    (mixedAttackerH - mixedAttackerF) /
+    (mixedAttackerE - mixedAttackerF - mixedAttackerG + mixedAttackerH);
+
   const isCellSelected = (row: number, col: number) =>
     clickedCell?.row === row && clickedCell?.col === col;
 
   const isServerHighlighted = (
     player: "defender" | "attacker",
-    server: 1 | 2,
+    server: 1 | 2 | 3,
   ) =>
     highlightedServer?.player === player &&
     highlightedServer?.server === server;
 
-  const highlightServer = (player: "defender" | "attacker", server: 1 | 2) => {
+  const highlightServer = (
+    player: "defender" | "attacker",
+    server: 1 | 2 | 3,
+  ) => {
     setHighlightedServer({ player, server });
   };
 
@@ -401,6 +613,7 @@ export const ExampleLab2 = () => {
     if (showIntro) {
       return;
     }
+    clearSelection();
     if (isRevealed) {
       if (currentStep.highlightCell) {
         handleCellClick(
@@ -414,8 +627,6 @@ export const ExampleLab2 = () => {
           currentStep.highlightServer.server,
         );
       }
-    } else {
-      clearSelection();
     }
   }, [pageIndex, stepIndex, showIntro]);
 
@@ -514,16 +725,34 @@ export const ExampleLab2 = () => {
                 isServerHighlighted("attacker", 1) ? " selected" : ""
               }`}
             >
-              Server 1
+              <span className="mix-header-line">
+                Server 1
+                {showAttackerMix && <span className="mix-label">(q)</span>}
+              </span>
+              {showAttackerMix && (
+                <span className="mix-percent">{asPercent(mixedQ)}</span>
+              )}
             </div>
             <div
               className={`matrix-sub-header matrix-col-sub-2${
                 isServerHighlighted("attacker", 2) ? " selected" : ""
               }`}
             >
-              Server 2
+              <span className="mix-header-line">
+                Server 2
+                {showAttackerMix && <span className="mix-label">(1-q)</span>}
+              </span>
+              {showAttackerMix && (
+                <span className="mix-percent">{asPercent(1 - mixedQ)}</span>
+              )}
             </div>
-            <div className="matrix-sub-header matrix-col-sub-3">No Action</div>
+            <div
+              className={`matrix-sub-header matrix-col-sub-3${
+                isServerHighlighted("attacker", 3) ? " selected" : ""
+              }`}
+            >
+              No Action
+            </div>
 
             <div className="matrix-axis-label matrix-axis-defender-3x3">
               Defender
@@ -533,16 +762,34 @@ export const ExampleLab2 = () => {
                 isServerHighlighted("defender", 1) ? " selected" : ""
               }`}
             >
-              Server 1
+              <span className="mix-header-line">
+                Server 1
+                {showDefenderMix && <span className="mix-label">(p)</span>}
+              </span>
+              {showDefenderMix && (
+                <span className="mix-percent">{asPercent(mixedP)}</span>
+              )}
             </div>
             <div
               className={`matrix-sub-header matrix-row-sub-2${
                 isServerHighlighted("defender", 2) ? " selected" : ""
               }`}
             >
-              Server 2
+              <span className="mix-header-line">
+                Server 2
+                {showDefenderMix && <span className="mix-label">(1-p)</span>}
+              </span>
+              {showDefenderMix && (
+                <span className="mix-percent">{asPercent(1 - mixedP)}</span>
+              )}
             </div>
-            <div className="matrix-sub-header matrix-row-sub-3">No Action</div>
+            <div
+              className={`matrix-sub-header matrix-row-sub-3${
+                isServerHighlighted("defender", 3) ? " selected" : ""
+              }`}
+            >
+              No Action
+            </div>
 
             {matrix.map((row, rowIndex) =>
               row.map((payoff, colIndex) => (
@@ -689,7 +936,7 @@ export const ExampleLab2 = () => {
               <div className="dynamic-finish">
                 <p className="dynamic-finish-title">Walkthrough complete!</p>
                 <p className="dynamic-finish-subtitle">
-                  Great work - you've walked through every concept in this lab.
+                  Good job, you've walked through every concept in this lab.
                 </p>
                 <div className="concepts-learned">
                   <p className="concepts-learned-title">Concepts learned</p>
@@ -706,7 +953,7 @@ export const ExampleLab2 = () => {
                   </ul>
                 </div>
                 <p className="dynamic-finish-subtitle">
-                  Practice is now open to work through these concepts yourself.
+                  Practice is open to work through these concepts yourself.
                 </p>
               </div>
             )}

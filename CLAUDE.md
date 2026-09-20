@@ -89,12 +89,12 @@ These feed into each player's result (payoff) via two separate equations (notabl
 
 Because both players now also have the option to take no action, the payoff matrix grows from Lab 1's 2x2 (Defend S1/S2 x Attack S1/S2) to a **3x3 matrix**: Defend S1 / Defend S2 / No Action (Defender) crossed with Attack S1 / Attack S2 / No Action (Attacker).
 
-**Value customization**: Lab 2 introduces user-adjustable game parameters. At the start of both the Example and Practice sections, four slider bars let the user set `S1`, `S2`, `Ch`, and `Ce` themselves before working through the lab, with these constraints:
-- `S1`: from `Ch + 1` to `50` (must exceed the honeypot cost).
-- `S2`: from `Ch + 1` to `50` (must exceed the honeypot cost).
+**Value customization**: Lab 2 introduces user-adjustable game parameters. Example's four values (`S1`, `S2`, `Ch`, `Ce`) are fixed; Practice lets the user set all four themselves via sliders before working through the lab, with these constraints:
+- `S1`: from `21` to `50`.
+- `S2`: from `21` to `50`.
 - `Ch`: from `1` to `10`.
 - `Ce`: from `1` to `10`.
 
-(`S1`/`S2`'s lower bound depends on `Ch`'s current slider value, so the sliders aren't fully independent of each other.)
+`S1`/`S2`'s minimum of `21` (rather than just `Ch + 1`) is deliberate, not arbitrary, it guarantees `H = S1*S2/(S1+S2)` (the harmonic-mean-style threshold that governs whether a Pure N.E. can exist, and whether Mixed N.E. needs all three strategies) always stays above `Ce`'s max of `10`. That in turn guarantees, for *any* slider combination: no Pure N.E. ever exists, and Mixed N.E. always reduces to the same 2-strategy calculation Lab 1 uses (excluding No Action), for both players, matching exactly what the Example teaches. Without this floor, some slider combinations would require a genuinely different, harder calculation method (a real Pure N.E. existing, or a full 3-strategy Mixed N.E. requiring feasibility checks / support enumeration), which would make Practice inconsistent with what Example demonstrates. If a future lab wants to explore that fuller complexity, it should be a deliberate, separate design decision, not something Practice stumbles into via slider ranges.
 
 More Lab 2 details TBD as it's built out.
