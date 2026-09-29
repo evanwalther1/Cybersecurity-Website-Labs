@@ -1,0 +1,378 @@
+/* Lab 3's chrome accent is #c22982 (matching Lab3.tsx's accentColor), but the
+   two colors that carry meaning here are the PLAYER colors: attacker red and
+   defender blue. Those are deliberately independent of the lab theme, because
+   they encode the single most important thing on screen, whose turn it is and
+   whose payoff is being maximized. The most common student error in backward
+   induction is maximizing the wrong player's payoff, so player color is always
+   paired with consistent screen position rather than used on its own. */
+
+.lab3 {
+  --lab3-accent: #c22982;
+  --lab3-attacker: #e03131;
+  --lab3-defender: #1c7ed6;
+  --lab3-halo: var(--cui-body-bg, #fff);
+}
+
+/* ---------------------------------------------------------------- tree ---- */
+
+.lab3-tree {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  overflow: visible;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.lab3-edge line {
+  stroke: var(--cui-border-color, #b9bec7);
+  stroke-width: 1.5;
+  transition:
+    stroke 0.25s ease,
+    stroke-width 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.lab3-edge-attacker line {
+  stroke: color-mix(in srgb, var(--lab3-attacker) 45%, transparent);
+}
+
+.lab3-edge-defender line {
+  stroke: color-mix(in srgb, var(--lab3-defender) 45%, transparent);
+}
+
+.lab3-edge.is-surviving line {
+  stroke-width: 3.5;
+}
+
+.lab3-edge-attacker.is-surviving line {
+  stroke: var(--lab3-attacker);
+}
+
+.lab3-edge-defender.is-surviving line {
+  stroke: var(--lab3-defender);
+}
+
+.lab3-edge.is-pruned line {
+  stroke: var(--cui-border-color, #b9bec7);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  opacity: 0.35;
+}
+
+.lab3-edge.is-played line {
+  stroke-width: 3.5;
+  stroke-dasharray: none;
+}
+
+.lab3-edge.is-dimmed {
+  opacity: 0.18;
+}
+
+.lab3-edge-label {
+  font-size: 13px;
+  text-anchor: middle;
+  fill: var(--cui-secondary-color, #6c757d);
+  /* Paint the halo first so the label stays readable where it crosses an
+     edge. paint-order is the clean way to do this, no background rect. */
+  stroke: var(--lab3-halo);
+  stroke-width: 3px;
+  paint-order: stroke fill;
+}
+
+.lab3-edge.is-pruned .lab3-edge-label {
+  opacity: 0.4;
+}
+
+.lab3-edge-hit {
+  stroke: transparent;
+  stroke-width: 22;
+  cursor: pointer;
+}
+
+.lab3-edge.is-clickable line:first-child {
+  stroke-dasharray: 5 3;
+  animation: lab3-edge-invite 1.4s ease-in-out infinite;
+}
+
+@keyframes lab3-edge-invite {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* ---------------------------------------------------------------- nodes --- */
+
+.lab3-node circle {
+  stroke-width: 2;
+  transition: opacity 0.25s ease;
+}
+
+.lab3-node-attacker circle {
+  fill: color-mix(in srgb, var(--lab3-attacker) 18%, var(--cui-body-bg, #fff));
+  stroke: var(--lab3-attacker);
+}
+
+.lab3-node-defender circle {
+  fill: color-mix(in srgb, var(--lab3-defender) 18%, var(--cui-body-bg, #fff));
+  stroke: var(--lab3-defender);
+}
+
+.lab3-node-letter {
+  font-size: 17px;
+  font-weight: 700;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.lab3-node-attacker .lab3-node-letter {
+  fill: var(--lab3-attacker);
+}
+
+.lab3-node-defender .lab3-node-letter {
+  fill: var(--lab3-defender);
+}
+
+.lab3-node-value {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--cui-body-color, #212529);
+  stroke: var(--lab3-halo);
+  stroke-width: 3px;
+  paint-order: stroke fill;
+}
+
+.lab3-node.is-dimmed,
+.lab3-terminal.is-dimmed {
+  opacity: 0.18;
+}
+
+/* ------------------------------------------------------------ terminals --- */
+
+.lab3-terminal rect {
+  fill: var(--cui-tertiary-bg, #f1f3f5);
+  stroke: var(--cui-border-color, #b9bec7);
+  stroke-width: 1.5;
+  transition: opacity 0.25s ease;
+}
+
+.lab3-terminal.is-trapped rect {
+  fill: color-mix(in srgb, var(--lab3-defender) 12%, var(--cui-tertiary-bg, #f1f3f5));
+  stroke: var(--lab3-defender);
+  stroke-dasharray: 4 3;
+}
+
+.lab3-terminal-name {
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--cui-body-color, #212529);
+}
+
+.lab3-terminal-payoff {
+  font-size: 12px;
+  text-anchor: middle;
+  fill: var(--cui-secondary-color, #6c757d);
+}
+
+.lab3-terminal.is-trapped .lab3-terminal-payoff {
+  fill: var(--lab3-defender);
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------- panel --- */
+
+.lab3-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab3-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.lab3-legend-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+}
+
+.lab3-attacker-text {
+  color: var(--lab3-attacker);
+  font-weight: 700;
+}
+
+.lab3-defender-text {
+  color: var(--lab3-defender);
+  font-weight: 700;
+}
+
+.lab3-values-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1.1rem;
+  padding: 0.55rem 0.85rem;
+  margin-bottom: 0.6rem;
+  background: var(--cui-tertiary-bg);
+  border: 1px solid color-mix(in srgb, var(--lab3-accent) 35%, transparent);
+  border-radius: 0.5rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.lab3-values-label {
+  font-weight: 700;
+  color: var(--lab3-accent);
+}
+
+.lab3-formula {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+  background: var(--cui-tertiary-bg);
+  border-left: 3px solid var(--lab3-accent);
+  border-radius: 0.25rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.lab3-formula.is-attacker {
+  border-left-color: var(--lab3-attacker);
+}
+
+.lab3-formula.is-defender {
+  border-left-color: var(--lab3-defender);
+}
+
+.lab3-play-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.6rem 0;
+}
+
+.lab3-bubble {
+  max-width: 85%;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.65rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.lab3-bubble.is-attacker {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--lab3-attacker) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lab3-attacker) 40%, transparent);
+}
+
+.lab3-bubble.is-defender {
+  align-self: flex-start;
+  background: color-mix(in srgb, var(--lab3-defender) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lab3-defender) 40%, transparent);
+}
+
+.lab3-bubble-who {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.15rem;
+}
+
+.lab3-bubble.is-attacker .lab3-bubble-who {
+  color: var(--lab3-attacker);
+}
+
+.lab3-bubble.is-defender .lab3-bubble-who {
+  color: var(--lab3-defender);
+}
+
+.lab3-profile {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  margin-top: 0.5rem;
+}
+
+.lab3-profile th,
+.lab3-profile td {
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--cui-border-color, #dcdfe4);
+}
+
+.lab3-profile th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab3-profile tr.is-offpath td {
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab3-profile-badge {
+  display: inline-block;
+  padding: 0 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lab3-profile-badge.is-onpath {
+  background: color-mix(in srgb, var(--lab3-accent) 20%, transparent);
+  color: var(--lab3-accent);
+}
+
+.lab3-note {
+  padding: 0.5rem 0.75rem;
+  margin: 0.6rem 0;
+  border-left: 3px solid var(--cui-warning, #f0a500);
+  background: color-mix(in srgb, var(--cui-warning, #f0a500) 10%, transparent);
+  border-radius: 0.25rem;
+  font-size: 0.83rem;
+}
+
+/* ------------------------------------------------------------ proportions --- */
+
+/* The default lab split is 50/50, which suits a payoff matrix. A game tree
+   needs the room far more than the prose does, so Lab 3 runs roughly 2:1.
+   Scoped to .lab3 so Labs 1 and 2 keep the even split. */
+.lab-panel-columns.lab3 .lab-panel-static {
+  flex: 1 1 62%;
+}
+
+.lab-panel-columns.lab3 .lab-panel-dynamic {
+  flex: 1 1 38%;
+  overflow-y: auto;
+}
+
+/* .static-lab's 3rem gap is sized for a matrix sitting above a legend. Here it
+   just steals vertical space the tree could be using. */
+.lab3-static-lab {
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  justify-content: center;
+}
+
+/* width:100% alone leaves the tree width-bound, which wastes the vertical
+   space a fullscreen window gains. Giving it both dimensions lets
+   preserveAspectRatio="xMidYMid meet" scale the tree to whichever axis binds
+   first, so it always renders as large as the panel allows. */
+.lab3-static-lab .lab3-tree {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}

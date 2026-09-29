@@ -1,6 +1,6 @@
 /* Lab 2's accent is green (#20c997) instead of Lab 1's blue (#4dabf7) -
    this file holds every Lab 2-specific override, layered on top of the
-   shared dynamic-*/matrix-* classes from ExampleLab1.css/PayoffMatrix.css.
+   shared dynamic- and matrix- classes from ExampleLab1.css/PayoffMatrix.css.
    Keep using #20c997 for anything new added to Lab 2 so it stays visually
    distinct from Lab 1. */
 
@@ -60,6 +60,22 @@
 .lab2-variables-value {
   color: #f5f6f7;
   font-weight: 600;
+}
+
+/* While a step is showing its alternate form the matrix is built from a
+   different value set, so the panel gets a warmer border and a caption to
+   make it obvious these aren't the lab's usual numbers. */
+.lab2-variables-panel.alternate {
+  border-color: rgba(255, 193, 7, 0.55);
+}
+
+.lab2-variables-alt-note {
+  margin: 0.15rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #ffc107;
 }
 
 /* PayoffMatrix.css/ExampleLab1.css hardcode Lab 1's blue (#4dabf7) on the

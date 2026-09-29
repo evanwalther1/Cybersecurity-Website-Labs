@@ -19,20 +19,18 @@ interface Payoff3x3 {
   attacker: number | null;
 }
 
+// Same shape as Payoff3x3 but non-nullable, used once the lab has started
+// and the matrix is guaranteed built.
 interface RealPayoff {
   defender: number;
   attacker: number;
 }
 
-const toRealMatrix = (matrix: Payoff3x3[][]): RealPayoff[][] =>
-  matrix.map((row) =>
-    row.map((cell) => ({
-      defender: cell.defender ?? 0,
-      attacker: cell.attacker ?? 0,
-    })),
-  );
-
+const EPS = 1e-7;
 const LAB2_ACCENT = "#20c997";
+
+const DEFENDER_ACTIONS = ["Defend Server 1", "Defend Server 2", "No Action"];
+const ATTACKER_ACTIONS = ["Attack Server 1", "Attack Server 2", "No Action"];
 
 const lab2SliderSx = {
   color: LAB2_ACCENT,
@@ -57,17 +55,17 @@ const lab2SliderSx = {
   },
 };
 
-const SERVER_MIN = 21;
-
 const ServerMarks = [
-  { value: 21 },
+  { value: 1 },
+  { value: 10 },
+  { value: 20 },
   { value: 30 },
   { value: 40 },
   { value: 50 },
 ];
 
 const NonServerMarks = [
-  { value: 0 },
+  { value: 1 },
   { value: 2 },
   { value: 4 },
   { value: 6 },
@@ -83,19 +81,20 @@ const generateBlankMatrix = (): Payoff3x3[][] => [
   [blankPayoff(), blankPayoff(), blankPayoff()],
 ];
 
-const calculateLab2Matrix = (
+// Same rules/formulas as ExampleLab2's calculateLab2Matrix.
+export const calculateLab2Matrix = (
   s1: number,
   s2: number,
   ch: number,
   ce: number,
-): Payoff3x3[][] => {
+): RealPayoff[][] => {
   const totalValue = s1 + s2;
   const serverValues = [s1, s2];
 
   const cellFor = (
     defenderAction: 0 | 1 | 2,
     attackerAction: 0 | 1 | 2,
-  ): Payoff3x3 => {
+  ): RealPayoff => {
     const defenderActed = defenderAction !== 2;
     const attackerActed = attackerAction !== 2;
 
@@ -121,6 +120,8 @@ const calculateLab2Matrix = (
     [cellFor(2, 0), cellFor(2, 1), cellFor(2, 2)],
   ];
 };
+
+// --- Question-generation helpers (same techniques as PracticeLab1.tsx) ---
 
 const asPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
 
@@ -153,7 +154,7 @@ const buildPercentChoices = (
   }
 
   let guard = 0;
-  while (distractors.length < 3 && guard < 100) {
+  while (distractors.length < 3 && guard < 200) {
     const randomOffset =
       (0.1 + Math.random() * 0.4) * (Math.random() < 0.5 ? -1 : 1);
     const randomLabel = asPercent(
@@ -192,246 +193,409 @@ const buildIntegerChoices = (
   };
 };
 
-const randomMixPercent = (): number => {
-  const options = [15, 20, 25, 30, 35, 40, 60, 65, 70, 75, 80, 85];
-  return options[Math.floor(Math.random() * options.length)];
+// Every index that ties for the maximum. Answers can legitimately tie (if
+// S1 equals Ch, defending Server 1 and doing nothing are exactly as good),
+// so every tied-optimal choice has to count as correct.
+const argMaxIndices = (values: number[]): number[] => {
+  const best = Math.max(...values);
+  return values
+    .map((value, index) => ({ value, index }))
+    .filter((entry) => entry.value >= best - EPS)
+    .map((entry) => entry.index);
 };
 
-const calculateDefenderMaxmin = (matrix: RealPayoff[][]): number =>
-  Math.max(
-    Math.min(
-      matrix[0][0].defender,
-      matrix[0][1].defender,
-      matrix[0][2].defender,
-    ),
-    Math.min(
-      matrix[1][0].defender,
-      matrix[1][1].defender,
-      matrix[1][2].defender,
-    ),
-    Math.min(
-      matrix[2][0].defender,
-      matrix[2][1].defender,
-      matrix[2][2].defender,
-    ),
-  );
+// --- Nash equilibrium solver -------------------------------------------
+// Support enumeration over equal-size supports, which finds every
+// equilibrium of a non-degenerate bimatrix game. Degenerate value sets get
+// rejected by the validity gate below rather than answered incorrectly.
 
-const calculateAttackerMaxmin = (matrix: RealPayoff[][]): number =>
-  Math.max(
-    Math.min(
-      matrix[0][0].attacker,
-      matrix[1][0].attacker,
-      matrix[2][0].attacker,
-    ),
-    Math.min(
-      matrix[0][1].attacker,
-      matrix[1][1].attacker,
-      matrix[2][1].attacker,
-    ),
-    Math.min(
-      matrix[0][2].attacker,
-      matrix[1][2].attacker,
-      matrix[2][2].attacker,
-    ),
-  );
+interface Equilibrium {
+  defender: number[];
+  attacker: number[];
+}
 
-const calculateDefenderMinmax = (matrix: RealPayoff[][]): number =>
-  Math.min(
-    Math.max(
-      matrix[0][0].attacker,
-      matrix[0][1].attacker,
-      matrix[0][2].attacker,
-    ),
-    Math.max(
-      matrix[1][0].attacker,
-      matrix[1][1].attacker,
-      matrix[1][2].attacker,
-    ),
-    Math.max(
-      matrix[2][0].attacker,
-      matrix[2][1].attacker,
-      matrix[2][2].attacker,
-    ),
-  );
+const SUPPORTS: number[][] = [
+  [0],
+  [1],
+  [2],
+  [0, 1],
+  [0, 2],
+  [1, 2],
+  [0, 1, 2],
+];
 
-const calculateAttackerMinmax = (matrix: RealPayoff[][]): number =>
-  Math.min(
-    Math.max(
-      matrix[0][0].defender,
-      matrix[1][0].defender,
-      matrix[2][0].defender,
-    ),
-    Math.max(
-      matrix[0][1].defender,
-      matrix[1][1].defender,
-      matrix[2][1].defender,
-    ),
-    Math.max(
-      matrix[0][2].defender,
-      matrix[1][2].defender,
-      matrix[2][2].defender,
-    ),
-  );
+// Gauss-Jordan elimination, returns null when the system is singular.
+const solveLinear = (rows: number[][], rhs: number[]): number[] | null => {
+  const n = rhs.length;
+  const m = rows.map((row, i) => [...row, rhs[i]]);
 
-const computeAttackerQ = (matrix: RealPayoff[][]): number => {
-  const a = matrix[0][0].defender; // Defend S1, Attack S1
-  const b = matrix[0][1].defender; // Defend S1, Attack S2
-  const c = matrix[1][0].defender; // Defend S2, Attack S1
-  const d = matrix[1][1].defender; // Defend S2, Attack S2
-  return (d - b) / (a - b - c + d);
+  for (let col = 0; col < n; col++) {
+    let pivot = -1;
+    let best = 1e-10;
+    for (let row = col; row < n; row++) {
+      if (Math.abs(m[row][col]) > best) {
+        best = Math.abs(m[row][col]);
+        pivot = row;
+      }
+    }
+    if (pivot < 0) return null;
+    [m[col], m[pivot]] = [m[pivot], m[col]];
+
+    const pivotValue = m[col][col];
+    for (let k = col; k <= n; k++) m[col][k] /= pivotValue;
+    for (let row = 0; row < n; row++) {
+      if (row === col) continue;
+      const factor = m[row][col];
+      if (factor === 0) continue;
+      for (let k = col; k <= n; k++) m[row][k] -= factor * m[col][k];
+    }
+  }
+
+  return m.map((row) => row[n]);
 };
 
-const computeDefenderP = (matrix: RealPayoff[][]): number => {
-  const e = matrix[0][0].attacker; // Defend S1, Attack S1
-  const f = matrix[1][0].attacker; // Defend S2, Attack S1
-  const g = matrix[0][1].attacker; // Defend S1, Attack S2
-  const h = matrix[1][1].attacker; // Defend S2, Attack S2
-  return (h - f) / (e - f - g + h);
+export const findEquilibria = (matrix: RealPayoff[][]): Equilibrium[] => {
+  const found: Equilibrium[] = [];
+
+  for (const defenderSupport of SUPPORTS) {
+    for (const attackerSupport of SUPPORTS) {
+      if (defenderSupport.length !== attackerSupport.length) continue;
+      const size = defenderSupport.length;
+
+      // The attacker's probabilities are pinned by making the defender
+      // indifferent across the defender's own support, and vice versa.
+      const attackerRows: number[][] = [];
+      const attackerRhs: number[] = [];
+      for (let t = 0; t + 1 < size; t++) {
+        attackerRows.push(
+          attackerSupport.map(
+            (j) =>
+              matrix[defenderSupport[t]][j].defender -
+              matrix[defenderSupport[t + 1]][j].defender,
+          ),
+        );
+        attackerRhs.push(0);
+      }
+      attackerRows.push(attackerSupport.map(() => 1));
+      attackerRhs.push(1);
+      const attackerSolution = solveLinear(attackerRows, attackerRhs);
+      if (!attackerSolution) continue;
+
+      const defenderRows: number[][] = [];
+      const defenderRhs: number[] = [];
+      for (let t = 0; t + 1 < size; t++) {
+        defenderRows.push(
+          defenderSupport.map(
+            (i) =>
+              matrix[i][attackerSupport[t]].attacker -
+              matrix[i][attackerSupport[t + 1]].attacker,
+          ),
+        );
+        defenderRhs.push(0);
+      }
+      defenderRows.push(defenderSupport.map(() => 1));
+      defenderRhs.push(1);
+      const defenderSolution = solveLinear(defenderRows, defenderRhs);
+      if (!defenderSolution) continue;
+
+      const defender = [0, 0, 0];
+      const attacker = [0, 0, 0];
+      defenderSupport.forEach((i, t) => (defender[i] = defenderSolution[t]));
+      attackerSupport.forEach((j, t) => (attacker[j] = attackerSolution[t]));
+
+      // Every strategy in the support must carry real weight.
+      if (defenderSupport.some((i) => defender[i] <= EPS)) continue;
+      if (attackerSupport.some((j) => attacker[j] <= EPS)) continue;
+
+      // Nothing outside the support may beat what's inside it.
+      const defenderPayoffs = [0, 1, 2].map((i) =>
+        attacker.reduce((sum, w, j) => sum + w * matrix[i][j].defender, 0),
+      );
+      const attackerPayoffs = [0, 1, 2].map((j) =>
+        defender.reduce((sum, w, i) => sum + w * matrix[i][j].attacker, 0),
+      );
+      const defenderBest = Math.max(...defenderPayoffs);
+      const attackerBest = Math.max(...attackerPayoffs);
+      if (defenderSupport.some((i) => defenderPayoffs[i] < defenderBest - EPS))
+        continue;
+      if (attackerSupport.some((j) => attackerPayoffs[j] < attackerBest - EPS))
+        continue;
+
+      const duplicate = found.some(
+        (e) =>
+          e.defender.every((v, i) => Math.abs(v - defender[i]) < 1e-6) &&
+          e.attacker.every((v, j) => Math.abs(v - attacker[j]) < 1e-6),
+      );
+      if (!duplicate) found.push({ defender, attacker });
+    }
+  }
+
+  return found;
+};
+
+// Cells where neither player can improve by switching on their own.
+const findStableCells = (
+  matrix: RealPayoff[][],
+): { defenderAction: number; attackerAction: number }[] => {
+  const cells: { defenderAction: number; attackerAction: number }[] = [];
+  for (let d = 0; d < 3; d++) {
+    for (let a = 0; a < 3; a++) {
+      const columnBest = Math.max(
+        matrix[0][a].defender,
+        matrix[1][a].defender,
+        matrix[2][a].defender,
+      );
+      const rowBest = Math.max(...matrix[d].map((cell) => cell.attacker));
+      if (
+        matrix[d][a].defender >= columnBest - EPS &&
+        matrix[d][a].attacker >= rowBest - EPS
+      ) {
+        cells.push({ defenderAction: d, attackerAction: a });
+      }
+    }
+  }
+  return cells;
+};
+
+// What a student following this lab end to end would arrive at: check for a
+// Pure N.E. first, otherwise run the three-variable mixed system and fall
+// back to two variables when it isn't feasible.
+const taughtSolution = (
+  matrix: RealPayoff[][],
+  s1: number,
+  s2: number,
+  ch: number,
+  ce: number,
+): Equilibrium => {
+  const stable = findStableCells(matrix);
+  if (stable.length > 0) {
+    const defender = [0, 0, 0];
+    const attacker = [0, 0, 0];
+    defender[stable[0].defenderAction] = 1;
+    attacker[stable[0].attackerAction] = 1;
+    return { defender, attacker };
+  }
+
+  const threeWayDefender = [1 - ce / s1, 1 - ce / s2, ce / s1 + ce / s2 - 1];
+  const threeWayAttacker = [ch / s1, ch / s2, 1 - ch / s1 - ch / s2];
+  if (
+    threeWayDefender.every((v) => v >= -EPS) &&
+    threeWayAttacker.every((v) => v >= -EPS)
+  ) {
+    return { defender: threeWayDefender, attacker: threeWayAttacker };
+  }
+
+  const sz = s1 + s2;
+  return {
+    defender: [s1 / sz, s2 / sz, 0],
+    attacker: [s2 / sz, s1 / sz, 0],
+  };
+};
+
+interface GameContext {
+  matrix: RealPayoff[][];
+  s1: number;
+  s2: number;
+  ch: number;
+  ce: number;
+  equilibrium: Equilibrium;
+}
+
+// A value set is usable only when the game has exactly one equilibrium AND
+// the method this lab teaches actually finds it. Anything else (ties that
+// create several equilibria, or equilibria on supports this lab never
+// covers) would mark a correct student answer wrong, so it gets rejected at
+// Start Lab instead.
+export const analyzeGame = (
+  s1: number,
+  s2: number,
+  ch: number,
+  ce: number,
+): GameContext | null => {
+  const matrix = calculateLab2Matrix(s1, s2, ch, ce);
+  const equilibria = findEquilibria(matrix);
+  if (equilibria.length !== 1) return null;
+
+  const taught = taughtSolution(matrix, s1, s2, ch, ce);
+  const matches =
+    taught.defender.every(
+      (v, i) => Math.abs(v - equilibria[0].defender[i]) < 1e-6,
+    ) &&
+    taught.attacker.every(
+      (v, j) => Math.abs(v - equilibria[0].attacker[j]) < 1e-6,
+    );
+  if (!matches) return null;
+
+  return { matrix, s1, s2, ch, ce, equilibrium: equilibria[0] };
 };
 
 interface Step {
   question: { defender: string; attacker: string };
   choices: { defender: string[]; attacker: string[] };
-  correctAnswer: { defender: string; attacker: string };
+  // Every answer that counts as correct, so genuine ties are graded fairly.
+  correctAnswer: { defender: string[]; attacker: string[] };
   weight: number;
 }
 
 interface Page {
-  Steps: (matrix: RealPayoff[][], s1: number, s2: number) => Step[];
+  Steps: (game: GameContext) => Step[];
 }
 
-const generatePages = (): Page[] => [
+// Splits used for the "given a mix" question. 50/50 is left out because it
+// makes the two servers symmetric and the answer ambiguous.
+const MIX_SPLITS = [15, 20, 25, 30, 35, 40, 60, 65, 70, 75, 80, 85];
+
+export const generatePages = (): Page[] => [
   {
-    Steps: (matrix, s1, s2) => {
-      const defenderGiven = ["Attack Server 1", "Attack Server 2", "No Action"][
-        Math.floor(Math.random() * 3)
+    Steps: (game) => {
+      const { matrix, equilibrium } = game;
+      const rd = (row: number, col: number) => matrix[row][col].defender;
+      const ra = (row: number, col: number) => matrix[row][col].attacker;
+
+      // --- Best Response (easy): one fixed opponent action.
+      const defenderBestAgainst = (attackerAction: number) =>
+        argMaxIndices([
+          rd(0, attackerAction),
+          rd(1, attackerAction),
+          rd(2, attackerAction),
+        ]);
+      const attackerBestAgainst = (defenderAction: number) =>
+        argMaxIndices([
+          ra(defenderAction, 0),
+          ra(defenderAction, 1),
+          ra(defenderAction, 2),
+        ]);
+
+      // Prefer a scenario with a single clear winner; fall back to any of
+      // them (and accept every tied answer) if none is clean.
+      const pickScenario = (best: (index: number) => number[]) => {
+        const all = [0, 1, 2];
+        const strict = all.filter((index) => best(index).length === 1);
+        const pool = strict.length > 0 ? strict : all;
+        return pool[Math.floor(Math.random() * pool.length)];
+      };
+
+      const defenderGiven = pickScenario(defenderBestAgainst);
+      const attackerGiven = pickScenario(attackerBestAgainst);
+
+      // --- Best Response (hard): opponent mixes over their two servers.
+      const defenderBestAgainstMix = (weight: number) =>
+        argMaxIndices([
+          weight * rd(0, 0) + (1 - weight) * rd(0, 1),
+          weight * rd(1, 0) + (1 - weight) * rd(1, 1),
+          weight * rd(2, 0) + (1 - weight) * rd(2, 1),
+        ]);
+      const attackerBestAgainstMix = (weight: number) =>
+        argMaxIndices([
+          weight * ra(0, 0) + (1 - weight) * ra(1, 0),
+          weight * ra(0, 1) + (1 - weight) * ra(1, 1),
+          weight * ra(0, 2) + (1 - weight) * ra(1, 2),
+        ]);
+
+      const pickSplit = (best: (weight: number) => number[]) => {
+        const strict = MIX_SPLITS.filter(
+          (percent) => best(percent / 100).length === 1,
+        );
+        const pool = strict.length > 0 ? strict : MIX_SPLITS;
+        return pool[Math.floor(Math.random() * pool.length)];
+      };
+
+      const attackerSplit = pickSplit(defenderBestAgainstMix);
+      const defenderSplit = pickSplit(attackerBestAgainstMix);
+
+      // --- Pure N.E.: the four candidate outcomes, one of which is true.
+      const noPureStatement =
+        "No, there is no Pure Nash Equilibrium: whichever single pair of strategies you check, at least one player always has a profitable switch.";
+      const cellStatement = (d: number, a: number) =>
+        `Yes, at (${DEFENDER_ACTIONS[d]}, ${ATTACKER_ACTIONS[a]}), neither player can improve their own payoff by switching on their own.`;
+      const stableCells = findStableCells(matrix);
+      const pureCorrect =
+        stableCells.length > 0
+          ? cellStatement(
+              stableCells[0].defenderAction,
+              stableCells[0].attackerAction,
+            )
+          : noPureStatement;
+      const purePool = [
+        noPureStatement,
+        cellStatement(2, 2),
+        cellStatement(2, 0),
+        cellStatement(2, 1),
+        cellStatement(0, 0),
+        cellStatement(1, 1),
       ];
-      const defenderBREasyAnswer =
-        defenderGiven === "Attack Server 1"
-          ? "Defend Server 1"
-          : defenderGiven === "Attack Server 2"
-            ? "Defend Server 2"
-            : "No Action";
-
-      const attackerGiven = ["Defend Server 1", "Defend Server 2", "No Action"][
-        Math.floor(Math.random() * 3)
-      ];
-      const attackerBREasyAnswer =
-        attackerGiven === "Defend Server 1"
-          ? "Attack Server 2"
-          : attackerGiven === "Defend Server 2"
-            ? "Attack Server 1"
-            : s1 >= s2
-              ? "Attack Server 1"
-              : "Attack Server 2";
-
-      const attackS1Percent = randomMixPercent();
-      const attackS2Percent = 100 - attackS1Percent;
-      const aP1 = attackS1Percent / 100;
-      const aP2 = attackS2Percent / 100;
-      const evDefendS1 =
-        aP1 * matrix[0][0].defender + aP2 * matrix[0][1].defender;
-      const evDefendS2 =
-        aP1 * matrix[1][0].defender + aP2 * matrix[1][1].defender;
-      const evDefendNoAction =
-        aP1 * matrix[2][0].defender + aP2 * matrix[2][1].defender;
-      const defenderBRHardAnswer =
-        evDefendS1 >= evDefendS2 && evDefendS1 >= evDefendNoAction
-          ? "Defend Server 1"
-          : evDefendS2 >= evDefendNoAction
-            ? "Defend Server 2"
-            : "No Action";
-
-      const defendS1Percent = randomMixPercent();
-      const defendS2Percent = 100 - defendS1Percent;
-      const dP1 = defendS1Percent / 100;
-      const dP2 = defendS2Percent / 100;
-      const evAttackS1 =
-        dP1 * matrix[0][0].attacker + dP2 * matrix[1][0].attacker;
-      const evAttackS2 =
-        dP1 * matrix[0][1].attacker + dP2 * matrix[1][1].attacker;
-      const evAttackNoAction =
-        dP1 * matrix[0][2].attacker + dP2 * matrix[1][2].attacker;
-      const attackerBRHardAnswer =
-        evAttackS1 >= evAttackS2 && evAttackS1 >= evAttackNoAction
-          ? "Attack Server 1"
-          : evAttackS2 >= evAttackNoAction
-            ? "Attack Server 2"
-            : "No Action";
-
-      const pureNEDefenderChoices = shuffle([
-        "No, whichever server I defend, the Attacker is always better off attacking the other undefended server, since exploiting it costs less than what it's worth.",
-        "Yes, both players doing nothing is always the safest and most stable choice.",
-        "No, because my honeypot cost is always higher than the Attacker's exploit cost.",
-        "Yes, because I can always guess which server the Attacker will target.",
-      ]);
-      const pureNEAttackerChoices = shuffle([
-        "No, whichever server the Defender defends, I'm always better off attacking the other undefended one, since it's worth more than what it costs me to exploit it.",
-        "Yes, both players doing nothing is always the safest and most stable choice.",
-        "No, because the Defender's honeypot cost is always higher than my exploit cost.",
-        "Yes, because the Defender can always guess which server I'll target.",
+      const pureChoices = shuffle([
+        pureCorrect,
+        ...shuffle(purePool.filter((s) => s !== pureCorrect)).slice(0, 3),
       ]);
 
-      const mixedQChoices = buildPercentChoices(computeAttackerQ(matrix));
-      const mixedPChoices = buildPercentChoices(computeDefenderP(matrix));
+      // --- Mixed N.E.: read the answer straight off the real equilibrium.
+      const defenderMixChoices = buildPercentChoices(equilibrium.defender[0]);
+      const attackerMixChoices = buildPercentChoices(equilibrium.attacker[0]);
 
-      const defenderMaxminChoices = buildIntegerChoices(
-        calculateDefenderMaxmin(matrix),
+      // --- Maxmin / Minmax.
+      const defenderMaxmin = Math.max(
+        Math.min(rd(0, 0), rd(0, 1), rd(0, 2)),
+        Math.min(rd(1, 0), rd(1, 1), rd(1, 2)),
+        Math.min(rd(2, 0), rd(2, 1), rd(2, 2)),
       );
-      const attackerMaxminChoices = buildIntegerChoices(
-        calculateAttackerMaxmin(matrix),
+      const attackerMaxmin = Math.max(
+        Math.min(ra(0, 0), ra(1, 0), ra(2, 0)),
+        Math.min(ra(0, 1), ra(1, 1), ra(2, 1)),
+        Math.min(ra(0, 2), ra(1, 2), ra(2, 2)),
       );
-      const defenderMinmaxChoices = buildIntegerChoices(
-        calculateDefenderMinmax(matrix),
+      const defenderMinmax = Math.min(
+        Math.max(ra(0, 0), ra(0, 1), ra(0, 2)),
+        Math.max(ra(1, 0), ra(1, 1), ra(1, 2)),
+        Math.max(ra(2, 0), ra(2, 1), ra(2, 2)),
       );
-      const attackerMinmaxChoices = buildIntegerChoices(
-        calculateAttackerMinmax(matrix),
+      const attackerMinmax = Math.min(
+        Math.max(rd(0, 0), rd(1, 0), rd(2, 0)),
+        Math.max(rd(0, 1), rd(1, 1), rd(2, 1)),
+        Math.max(rd(0, 2), rd(1, 2), rd(2, 2)),
       );
+
+      const defenderMaxminChoices = buildIntegerChoices(defenderMaxmin);
+      const attackerMaxminChoices = buildIntegerChoices(attackerMaxmin);
+      const defenderMinmaxChoices = buildIntegerChoices(defenderMinmax);
+      const attackerMinmaxChoices = buildIntegerChoices(attackerMinmax);
 
       return [
         {
           question: {
-            defender: `What is the Defender's Best Response if the Attacker chooses to play "${defenderGiven}"?`,
-            attacker: `What is the Attacker's Best Response if the Defender chooses to play "${attackerGiven}"?`,
+            defender: `What is the Defender's Best Response if the Attacker chooses to play "${ATTACKER_ACTIONS[defenderGiven]}"?`,
+            attacker: `What is the Attacker's Best Response if the Defender chooses to play "${DEFENDER_ACTIONS[attackerGiven]}"?`,
           },
           choices: {
-            defender: shuffle([
-              "Defend Server 1",
-              "Defend Server 2",
-              "No Action",
-            ]),
-            attacker: shuffle([
-              "Attack Server 1",
-              "Attack Server 2",
-              "No Action",
-            ]),
+            defender: shuffle([...DEFENDER_ACTIONS]),
+            attacker: shuffle([...ATTACKER_ACTIONS]),
           },
           correctAnswer: {
-            defender: defenderBREasyAnswer,
-            attacker: attackerBREasyAnswer,
+            defender: defenderBestAgainst(defenderGiven).map(
+              (i) => DEFENDER_ACTIONS[i],
+            ),
+            attacker: attackerBestAgainst(attackerGiven).map(
+              (i) => ATTACKER_ACTIONS[i],
+            ),
           },
           weight: 10,
         },
         {
           question: {
-            defender: `What is the Defender's Best Response if the Attacker randomizes their strategy, choosing Attack Server 1 with ${attackS1Percent}% probability and Attack Server 2 with ${attackS2Percent}% probability?`,
-            attacker: `What is the Attacker's Best Response if the Defender randomizes their strategy, choosing Defend Server 1 with ${defendS1Percent}% probability and Defend Server 2 with ${defendS2Percent}% probability?`,
+            defender: `What is the Defender's Best Response if the Attacker randomizes their strategy, choosing Attack Server 1 with ${attackerSplit}% probability and Attack Server 2 with ${100 - attackerSplit}% probability?`,
+            attacker: `What is the Attacker's Best Response if the Defender randomizes their strategy, choosing Defend Server 1 with ${defenderSplit}% probability and Defend Server 2 with ${100 - defenderSplit}% probability?`,
           },
           choices: {
-            defender: shuffle([
-              "Defend Server 1",
-              "Defend Server 2",
-              "No Action",
-            ]),
-            attacker: shuffle([
-              "Attack Server 1",
-              "Attack Server 2",
-              "No Action",
-            ]),
+            defender: shuffle([...DEFENDER_ACTIONS]),
+            attacker: shuffle([...ATTACKER_ACTIONS]),
           },
           correctAnswer: {
-            defender: defenderBRHardAnswer,
-            attacker: attackerBRHardAnswer,
+            defender: defenderBestAgainstMix(attackerSplit / 100).map(
+              (i) => DEFENDER_ACTIONS[i],
+            ),
+            attacker: attackerBestAgainstMix(defenderSplit / 100).map(
+              (i) => ATTACKER_ACTIONS[i],
+            ),
           },
           weight: 15,
         },
@@ -440,34 +604,27 @@ const generatePages = (): Page[] => [
             defender: "Is there a Pure Nash Equilibrium in this game?",
             attacker: "Is there a Pure Nash Equilibrium in this game?",
           },
-          choices: {
-            defender: pureNEDefenderChoices,
-            attacker: pureNEAttackerChoices,
-          },
+          choices: { defender: pureChoices, attacker: pureChoices },
           correctAnswer: {
-            defender: pureNEDefenderChoices.find((choice) =>
-              choice.startsWith("No, whichever server I defend"),
-            )!,
-            attacker: pureNEAttackerChoices.find((choice) =>
-              choice.startsWith("No, whichever server the Defender defends"),
-            )!,
+            defender: [pureCorrect],
+            attacker: [pureCorrect],
           },
           weight: 15,
         },
         {
           question: {
             defender:
-              "What is the Mixed-Strategy Nash Equilibrium probability that the Defender defends Server 1 (restricted to Defend S1 vs. Defend S2)?",
+              "In this game's Nash Equilibrium, what is the probability that the Defender defends Server 1?",
             attacker:
-              "What is the Mixed-Strategy Nash Equilibrium probability that the Attacker attacks Server 1 (restricted to Attack S1 vs. Attack S2)?",
+              "In this game's Nash Equilibrium, what is the probability that the Attacker attacks Server 1?",
           },
           choices: {
-            defender: mixedPChoices.choices,
-            attacker: mixedQChoices.choices,
+            defender: defenderMixChoices.choices,
+            attacker: attackerMixChoices.choices,
           },
           correctAnswer: {
-            defender: mixedPChoices.correctAnswer,
-            attacker: mixedQChoices.correctAnswer,
+            defender: [defenderMixChoices.correctAnswer],
+            attacker: [attackerMixChoices.correctAnswer],
           },
           weight: 25,
         },
@@ -481,8 +638,8 @@ const generatePages = (): Page[] => [
             attacker: attackerMaxminChoices.choices,
           },
           correctAnswer: {
-            defender: defenderMaxminChoices.correctAnswer,
-            attacker: attackerMaxminChoices.correctAnswer,
+            defender: [defenderMaxminChoices.correctAnswer],
+            attacker: [attackerMaxminChoices.correctAnswer],
           },
           weight: 15,
         },
@@ -496,8 +653,8 @@ const generatePages = (): Page[] => [
             attacker: attackerMinmaxChoices.choices,
           },
           correctAnswer: {
-            defender: defenderMinmaxChoices.correctAnswer,
-            attacker: attackerMinmaxChoices.correctAnswer,
+            defender: [defenderMinmaxChoices.correctAnswer],
+            attacker: [attackerMinmaxChoices.correctAnswer],
           },
           weight: 20,
         },
@@ -507,12 +664,11 @@ const generatePages = (): Page[] => [
 ];
 
 const DEFAULT_S1 = 25;
-const DEFAULT_S2 = 25;
-const DEFAULT_CH = 5;
-const DEFAULT_CE = 5;
+const DEFAULT_S2 = 15;
+const DEFAULT_CH = 4;
+const DEFAULT_CE = 6;
 
 export const PracticeLab2 = ({ onSubmit }: PracticeLab2Props) => {
-  const [matrix, setMatrix] = useState<Payoff3x3[][]>(generateBlankMatrix);
   const [isDefender, setIsDefender] = useState<boolean | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
 
@@ -521,35 +677,33 @@ export const PracticeLab2 = ({ onSubmit }: PracticeLab2Props) => {
   const [ch, setCh] = useState(DEFAULT_CH);
   const [ce, setCe] = useState(DEFAULT_CE);
 
-  const handleChChange = (_event: Event, value: number | number[]) => {
-    const newCh = value as number;
-    setCh(newCh);
-    setS1((prev) => Math.max(prev, newCh + 1, SERVER_MIN));
-    setS2((prev) => Math.max(prev, newCh + 1, SERVER_MIN));
-  };
-
-  const isS1Valid = s1 > ch;
-  const isS2Valid = s2 > ch;
-  const canStart = isDefender !== null && isS1Valid && isS2Valid;
-
   const [pages] = useState<Page[]>(generatePages);
   const [stepIndex, setStepIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Map<number, string>>(
     new Map<number, string>(),
   );
 
+  // Recomputed live as the sliders move, so Start Lab knows whether this
+  // value set produces a game every question can be graded against.
+  const game = useMemo(() => analyzeGame(s1, s2, ch, ce), [s1, s2, ch, ce]);
+  const valuesAreUsable = game !== null;
+  const canStart = isDefender !== null && valuesAreUsable;
+
+  const matrix: Payoff3x3[][] =
+    hasStarted && game ? game.matrix : generateBlankMatrix();
+
   const role: "defender" | "attacker" = isDefender ? "defender" : "attacker";
+  // Frozen once the lab starts so shuffles and scenario picks stay put
+  // while the student navigates back and forth.
   const steps = useMemo(
-    () => pages[0].Steps(toRealMatrix(matrix), s1, s2),
+    () => (game ? pages[0].Steps(game) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [pages, hasStarted],
   );
   const currentStep = steps[stepIndex];
 
   const handleStartLab = () => {
-    if (!canStart) {
-      return;
-    }
-    setMatrix(calculateLab2Matrix(s1, s2, ch, ce));
+    if (!canStart) return;
     setHasStarted(true);
   };
 
@@ -558,16 +712,12 @@ export const PracticeLab2 = ({ onSubmit }: PracticeLab2Props) => {
   };
 
   const handleNextQuestion = () => {
-    if (stepIndex === steps.length - 1) {
-      return;
-    }
+    if (stepIndex === steps.length - 1) return;
     setStepIndex((index) => index + 1);
   };
 
   const handleGoBack = () => {
-    if (stepIndex === 0) {
-      return;
-    }
+    if (stepIndex === 0) return;
     setStepIndex((index) => index - 1);
   };
 
@@ -575,22 +725,20 @@ export const PracticeLab2 = ({ onSubmit }: PracticeLab2Props) => {
     let score = 0;
     const results = steps.map((step, index) => {
       const yourAnswer = selectedAnswers.get(index) ?? "(no answer)";
-      const correctAnswer = step.correctAnswer[role];
-      if (yourAnswer === correctAnswer) {
-        score += step.weight;
-      }
+      const accepted = step.correctAnswer[role];
+      const isCorrect = accepted.includes(yourAnswer);
+      if (isCorrect) score += step.weight;
       return {
         question: step.question[role],
         yourAnswer,
-        correctAnswer,
-        isCorrect: yourAnswer === correctAnswer,
+        correctAnswer: accepted.join(" or "),
+        isCorrect,
       };
     });
     onSubmit({ score, results });
   };
 
   const handleRestart = () => {
-    setMatrix(generateBlankMatrix());
     setIsDefender(null);
     setHasStarted(false);
     setS1(DEFAULT_S1);
@@ -708,7 +856,7 @@ export const PracticeLab2 = ({ onSubmit }: PracticeLab2Props) => {
             <p className="lab2-slider-label">Server 1 Value</p>
             <Slider
               aria-label="Server 1 Value"
-              min={Math.max(ch + 1, SERVER_MIN)}
+              min={1}
               max={50}
               value={s1}
               step={1}
@@ -717,16 +865,11 @@ export const PracticeLab2 = ({ onSubmit }: PracticeLab2Props) => {
               sx={lab2SliderSx}
               onChange={(_event, value) => setS1(value as number)}
             />
-            {!isS1Valid && (
-              <p className="lab2-slider-error">
-                Server 1's value must be greater than Ch.
-              </p>
-            )}
 
             <p className="lab2-slider-label">Server 2 Value</p>
             <Slider
               aria-label="Server 2 Value"
-              min={Math.max(ch + 1, SERVER_MIN)}
+              min={1}
               max={50}
               value={s2}
               step={1}
@@ -735,11 +878,6 @@ export const PracticeLab2 = ({ onSubmit }: PracticeLab2Props) => {
               sx={lab2SliderSx}
               onChange={(_event, value) => setS2(value as number)}
             />
-            {!isS2Valid && (
-              <p className="lab2-slider-error">
-                Server 2's value must be greater than Ch.
-              </p>
-            )}
 
             <p className="lab2-slider-label">Honeypot Cost (Ch)</p>
             <Slider
@@ -751,7 +889,7 @@ export const PracticeLab2 = ({ onSubmit }: PracticeLab2Props) => {
               marks={NonServerMarks}
               valueLabelDisplay="on"
               sx={lab2SliderSx}
-              onChange={handleChChange}
+              onChange={(_event, value) => setCh(value as number)}
             />
 
             <p className="lab2-slider-label">Exploit Cost (Ce)</p>
@@ -778,7 +916,13 @@ export const PracticeLab2 = ({ onSubmit }: PracticeLab2Props) => {
               >
                 Start Lab
               </CButton>
-              {isDefender === null && (
+              {!valuesAreUsable && (
+                <p className="lab2-slider-error">
+                  This combination of values doesn't produce a game this lab
+                  can grade. Please retry with different values.
+                </p>
+              )}
+              {valuesAreUsable && isDefender === null && (
                 <p className="lab2-slider-error">
                   Choose Defender or Attacker to start.
                 </p>

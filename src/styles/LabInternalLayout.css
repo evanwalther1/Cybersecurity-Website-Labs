@@ -53,3 +53,21 @@
   color: var(--cui-danger);
 }
 
+
+/* Shown when LAB_COMPONENTS has no entry for the requested lab number, so a
+   lab that hasn't been built yet fails visibly instead of rendering nothing. */
+.lab-missing {
+  padding: 3rem 1rem;
+  text-align: center;
+  font-size: 1.05rem;
+  color: var(--cui-secondary-color);
+}
+
+/* Lab 3 renders a 12-terminal game tree, which is far wider than a payoff
+   matrix. At the default 2rem inset the tree scales down to the point where
+   the edge labels stop being readable, so this lab takes the whole viewport.
+   Add another selector here if a later lab needs the same treatment. */
+.lab-window-3 {
+  inset: 0;
+  border-radius: 0;
+}

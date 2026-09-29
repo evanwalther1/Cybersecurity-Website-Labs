@@ -5,6 +5,7 @@ import Layout from "./components/Layout";
 import Home from "./components/Home";
 import { Lab1 } from "./components/Lab1/Lab1";
 import Lab2 from "./components/Lab2/Lab2";
+import Lab3 from "./components/Lab3/Lab3";
 function App() {
   //const [count, setCount] = useState(0)
 
@@ -16,6 +17,7 @@ function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/lab1" element={<Lab1 />} />
           <Route path="/lab2" element={<Lab2 />} />
+          <Route path="/lab3" element={<Lab3 />} />
           {/* <Route path="/lab2" element={<Lab2 />} />
           <Route path="/lab3" element={<Lab3 />} />
           <Route path="/lab4" element={<Lab4 />} />

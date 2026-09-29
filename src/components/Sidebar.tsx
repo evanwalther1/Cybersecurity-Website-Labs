@@ -53,17 +53,22 @@ const Sidebar = () => {
             Lab 2
           </CNavLink>
         </CNavItem>
-        <CNavItem href="#">
-          <span className="nav-icon">
-            <span className="nav-icon-bullet"></span>
-          </span>{" "}
-          Lab 3
+        <CNavItem>
+          <CNavLink as={NavLink} to="/Lab3">
+            <span className="nav-icon">
+              <span className="nav-icon-bullet"></span>
+            </span>{" "}
+            Lab 3
+          </CNavLink>
         </CNavItem>
-        <CNavItem href="#">
-          <span className="nav-icon">
-            <span className="nav-icon-bullet"></span>
-          </span>{" "}
-          Lab 4
+
+        <CNavItem>
+          <CNavLink as={NavLink} to="/Lab4">
+            <span className="nav-icon">
+              <span className="nav-icon-bullet"></span>
+            </span>{" "}
+            Lab 4
+          </CNavLink>
         </CNavItem>
         <CNavItem href="#">
           <span className="nav-icon">

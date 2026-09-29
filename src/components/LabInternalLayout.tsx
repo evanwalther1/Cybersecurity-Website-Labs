@@ -17,9 +17,12 @@ import { cilWarning } from "@coreui/icons";
 import "../styles/LabInternalLayout.css";
 import { ExampleLab1 } from "./Lab1/ExampleLab1";
 import { ExampleLab2 } from "./Lab2/ExampleLab2";
+import { ExampleLab3 } from "./Lab3/ExampleLab3";
 import { PracticeLab1 } from "./Lab1/PracticeLab1";
 import { PracticeLab2 } from "./Lab2/PracticeLab2";
+import { PracticeLab3 } from "./Lab3/PracticeLab3";
 import { useState } from "react";
+import type { ComponentType } from "react";
 import type { LabResult } from "../types/labResult";
 
 interface LabInternalLayoutProps {
@@ -27,6 +30,19 @@ interface LabInternalLayoutProps {
   onLabComplete: (result: LabResult) => void;
   LabNum: number;
 }
+
+interface PracticeLabProps {
+  onSubmit: (result: LabResult) => void;
+}
+
+const LAB_COMPONENTS: Record<
+  number,
+  { Example: ComponentType; Practice: ComponentType<PracticeLabProps> }
+> = {
+  1: { Example: ExampleLab1, Practice: PracticeLab1 },
+  2: { Example: ExampleLab2, Practice: PracticeLab2 },
+  3: { Example: ExampleLab3, Practice: PracticeLab3 },
+};
 
 export const LabInternalLayout = ({
   onClose,
@@ -40,8 +56,27 @@ export const LabInternalLayout = ({
     onClose();
   };
 
+  const renderExampleLab = (labNum: number) => {
+    const lab = LAB_COMPONENTS[labNum];
+    if (!lab) {
+      return <p className="lab-missing">Lab {labNum} isn't available yet.</p>;
+    }
+    return <lab.Example />;
+  };
+
+  const renderPracticeLab = (labNum: number) => {
+    const lab = LAB_COMPONENTS[labNum];
+    if (!lab) {
+      return <p className="lab-missing">Lab {labNum} isn't available yet.</p>;
+    }
+    return <lab.Practice onSubmit={onLabComplete} />;
+  };
+
   return (
-    <div className="lab-window">
+    // The per-lab class exists so a lab with unusual space needs can opt out
+    // of the default inset window. Lab 3's game tree is wide, so it goes
+    // fullscreen (see LabInternalLayout.css).
+    <div className={`lab-window lab-window-${LabNum}`}>
       <CCloseButton
         className="lab-window-close"
         onClick={() => setShowCloseConfirm(true)}
@@ -84,14 +119,10 @@ export const LabInternalLayout = ({
         </CTabList>
         <CTabContent className="lab-tab-content">
           <CTabPanel itemKey="example" className="lab-tab-panel">
-            {LabNum == 1 ? <ExampleLab1 /> : <ExampleLab2 />}
+            {renderExampleLab(LabNum)}
           </CTabPanel>
           <CTabPanel itemKey="practice" className="lab-tab-panel">
-            {LabNum == 1 ? (
-              <PracticeLab1 onSubmit={onLabComplete} />
-            ) : (
-              <PracticeLab2 onSubmit={onLabComplete} />
-            )}
+            {renderPracticeLab(LabNum)}
           </CTabPanel>
         </CTabContent>
       </CTabs>

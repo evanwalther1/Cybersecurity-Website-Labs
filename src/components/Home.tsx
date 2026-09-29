@@ -41,8 +41,9 @@ const labs: LabSummary[] = [
     icon: cilPuzzle,
   },
   {
-    title: "Lab 3",
-    description: "Concepts for this lab are still being defined.",
+    title: "Lab 3: Extensive-Form Game",
+    description:
+      "Sequential games, Game Tree, Sup-Game Perfect Nash Equilibrium, Backward Induction",
     icon: cilChartLine,
   },
   {

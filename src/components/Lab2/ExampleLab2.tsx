@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CButton } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import {
@@ -25,6 +25,80 @@ const asPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
 // to at most 2 decimal places for display, dropping trailing zeros since
 // this returns a number, not a padded string.
 const roundTo2 = (value: number): number => Math.round(value * 100) / 100;
+
+interface LabValues {
+  s1: number;
+  s2: number;
+  ch: number;
+  ce: number;
+}
+
+// The values the whole walkthrough runs on by default.
+const PRIMARY_VALUES: LabValues = { s1: 45, s2: 30, ch: 4, ce: 7 };
+
+// Alternate values for the Pure N.E. step. The exploit cost (10) is higher
+// than either server is worth (8 and 6), so attacking is a guaranteed loss
+// and the Attacker stands down, which makes (No Action, No Action) stable.
+const PURE_NE_ALT_VALUES: LabValues = { s1: 8, s2: 6, ch: 3, ce: 10 };
+
+// Alternate values for both Mixed N.E. steps. These sit inside the narrow
+// band Ch <= S1*S2/(S1+S2) <= Ce <= min(S1,S2), which is exactly when both
+// players' three-strategy mixes stay feasible, so the 3x3 calculation
+// actually produces a valid answer instead of collapsing to 2 strategies.
+// (A single value set can't do both jobs: a Pure N.E. needs Ce above both
+// server values, a three-way mix needs Ce below them.)
+const MIXED3_ALT_VALUES: LabValues = { s1: 20, s2: 10, ch: 4, ce: 8 };
+
+// Solves the 2x2 linear system that comes out of an indifference condition
+// once the third probability is substituted in as 1 - x1 - x2. Cramer's
+// rule keeps this correct for any value set rather than any one matrix.
+const solveTwoByTwo = (
+  a1: number,
+  b1: number,
+  c1: number,
+  a2: number,
+  b2: number,
+  c2: number,
+): { x1: number; x2: number; x3: number } => {
+  const determinant = a1 * b2 - a2 * b1;
+  const x1 = (c1 * b2 - c2 * b1) / determinant;
+  const x2 = (a1 * c2 - a2 * c1) / determinant;
+  return { x1, x2, x3: 1 - x1 - x2 };
+};
+
+// The Defender mix (p1, p2, p3) that leaves the Attacker indifferent across
+// all three of the Attacker's strategies. The Attacker's No Action payoff
+// is always exactly 0, so both equations are set equal to 0.
+const solveDefenderMix3 = (matrix: Payoff3x3[][]) => {
+  const ra = (row: number, col: number) => matrix[row][col].attacker ?? 0;
+  const { x1, x2, x3 } = solveTwoByTwo(
+    ra(0, 0) - ra(2, 0),
+    ra(1, 0) - ra(2, 0),
+    -ra(2, 0),
+    ra(0, 1) - ra(2, 1),
+    ra(1, 1) - ra(2, 1),
+    -ra(2, 1),
+  );
+  return { p1: x1, p2: x2, p3: x3 };
+};
+
+// The Attacker mix (q1, q2, q3) that leaves the Defender indifferent across
+// all three of the Defender's strategies. Here the three Defender payoffs
+// are set equal to each other rather than to 0.
+const solveAttackerMix3 = (matrix: Payoff3x3[][]) => {
+  const rd = (row: number, col: number) => matrix[row][col].defender ?? 0;
+  const u = rd(0, 2) - rd(1, 2);
+  const v = rd(0, 2) - rd(2, 2);
+  const { x1, x2, x3 } = solveTwoByTwo(
+    rd(0, 0) - rd(1, 0) - u,
+    rd(0, 1) - rd(1, 1) - u,
+    -u,
+    rd(0, 0) - rd(2, 0) - v,
+    rd(0, 1) - rd(2, 1) - v,
+    -v,
+  );
+  return { q1: x1, q2: x2, q3: x3 };
+};
 
 const lab2SliderSx = {
   color: LAB2_ACCENT,
@@ -61,9 +135,21 @@ const lab2SliderSx = {
   },
 };
 
+// A second form of the same question, run on a different value set. The
+// matrix on the left recomputes from `values` while the alternate is
+// showing, so the student sees the same procedure land somewhere else.
+interface StepAlternate {
+  label: string;
+  values: LabValues;
+  response: (matrix: Payoff3x3[][]) => React.ReactNode[];
+  highlightCell?: { row: number; col: number };
+  highlightServer?: { player: "defender" | "attacker"; server: 1 | 2 | 3 };
+}
+
 interface Step {
   question: string[];
   response: (matrix: Payoff3x3[][]) => React.ReactNode[];
+  alternate?: StepAlternate;
   highlightCell?: { row: number; col: number };
   // server 3 = "No Action", alongside the two real servers.
   highlightServer?: { player: "defender" | "attacker"; server: 1 | 2 | 3 };
@@ -88,14 +174,14 @@ const generatePages = (): Page[] => [
           "What is the Defender's Best Response if the Attacker chooses to play No-Action?",
         ],
         response: (matrix) => {
-          const sz = EXAMPLE_S1 + EXAMPLE_S2;
+          const sz = PRIMARY_VALUES.s1 + PRIMARY_VALUES.s2;
           const defendS1 = matrix[0][2].defender;
           const defendS2 = matrix[1][2].defender;
           const noAction = matrix[2][2].defender;
           return [
             "Look at the column where the Attacker plays No Action - nothing is being attacked, so damage (D) is 0 no matter which strategy the Defender picks. Compare the Defender's payoff across all three of their own strategies in that column.",
-            `Defend Server 1: Rd = Sz - D - Ch = ${sz} - 0 - ${EXAMPLE_CH} = ${defendS1}.`,
-            `Defend Server 2: Rd = Sz - D - Ch = ${sz} - 0 - ${EXAMPLE_CH} = ${defendS2}.`,
+            `Defend Server 1: Rd = Sz - D - Ch = ${sz} - 0 - ${PRIMARY_VALUES.ch} = ${defendS1}.`,
+            `Defend Server 2: Rd = Sz - D - Ch = ${sz} - 0 - ${PRIMARY_VALUES.ch} = ${defendS2}.`,
             `No Action: Rd = Sz - D - Ch = ${sz} - 0 - 0 = ${noAction}.`,
             <>
               The highest payoff is{" "}
@@ -105,8 +191,8 @@ const generatePages = (): Page[] => [
                 Best Response is No Action
               </strong>
               . Since the Attacker isn't attacking anything, running a honeypot
-              on either server only costs Ch = {EXAMPLE_CH} for nothing in
-              return - there's no reason to pay for defense that will never
+              on either server only costs Ch = {PRIMARY_VALUES.ch} for nothing
+              in return - there's no reason to pay for defense that will never
               catch anything.
             </>,
           ];
@@ -185,11 +271,42 @@ const generatePages = (): Page[] => [
               <strong className="dynamic-highlight">
                 there is no Pure Nash Equilibrium
               </strong>{" "}
-              for these particular values of S1, S2, Ch, and Ce. Different
-              slider values could produce a game that does have one - it just
-              has to be checked, not assumed either way.
+              for these particular values of S1, S2, Ch, and Ce. A different
+              set of values can produce a game that does have one, use the
+              button below to run the same procedure on a set that does.
             </>,
           ];
+        },
+        alternate: {
+          label: "See a version that has a Pure Nash Equilibrium",
+          values: PURE_NE_ALT_VALUES,
+          highlightCell: { row: 2, col: 2 },
+          response: (matrix) => {
+            const rd = (row: number, col: number) =>
+              matrix[row][col].defender ?? 0;
+            const ra = (row: number, col: number) =>
+              matrix[row][col].attacker ?? 0;
+            const { s1, s2, ch, ce } = PURE_NE_ALT_VALUES;
+
+            return [
+              `Same procedure, different numbers. The matrix on the left has been rebuilt with S1 = ${s1}, S2 = ${s2}, Ch = ${ch}, and Ce = ${ce}. The key change is that the exploit now costs ${ce}, which is more than either server is worth.`,
+              `Start the same way, the Defender's best response to each Attacker column (the highest Rd in that column): against Attack S1 it's Defend S1 (${rd(0, 0)} beats ${rd(1, 0)} and ${rd(2, 0)}); against Attack S2 it's Defend S2 (${rd(1, 1)} beats ${rd(0, 1)} and ${rd(2, 1)}); against No Action it's No Action (${rd(2, 2)} beats ${rd(0, 2)} and ${rd(1, 2)}).`,
+              `Now check the Attacker in each candidate cell. At (Defend S1, Attack S1) the Attacker earns ${ra(0, 0)}, and standing down would earn ${ra(0, 2)} instead, so they'd switch and this cell isn't stable. At (Defend S2, Attack S2) the Attacker earns ${ra(1, 1)} against ${ra(1, 2)} for No Action, so that one isn't stable either.`,
+              `The third candidate is different. At (No Action, No Action) the Attacker earns ${ra(2, 2)}, and their alternatives are ${ra(2, 0)} for attacking Server 1 and ${ra(2, 1)} for attacking Server 2. Both are worse, so the Attacker stays put, and the Defender already prefers No Action in that column.`,
+              <>
+                Neither player wants to move, so this game{" "}
+                <strong className="dynamic-highlight">
+                  does have a Pure Nash Equilibrium
+                </strong>
+                , at (No Action, No Action), with payoffs of{" "}
+                <strong className="dynamic-highlight">{rd(2, 2)}</strong> for
+                the Defender and{" "}
+                <strong className="dynamic-highlight">{ra(2, 2)}</strong> for
+                the Attacker.
+              </>,
+              `In practical terms: the exploit costs ${ce} but the biggest prize on the network is only worth ${s1}, so attacking is a guaranteed loss no matter what the Defender does. A rational Attacker walks away, and once the Attacker is never going to attack, the Defender has no reason to pay ${ch} for a honeypot that will never catch anything. Both sides doing nothing is the stable outcome. That cost-versus-reward question is what Lab 1's zero-sum game never had, which is why a Pure Nash Equilibrium was impossible there but possible here.`,
+            ];
+          },
         },
       },
     ],
@@ -199,6 +316,7 @@ const generatePages = (): Page[] => [
     definition: [
       "A Mixed Nash Equilibrium is an equilibrium where a player randomizes between two or more strategies according to specific probabilities, rather than committing to one, useful when no Pure Nash Equilibrium exists. Each player picks probabilities that make the other player indifferent between their own choices.",
       "With three strategies available (Server 1, Server 2, No Action), a player's mix needs two free variables (e.x: p1 and p2 for the first two strategies, with the third being 1 - (p1 + p2)) since all three probabilities must add up to 1. Before assuming all three strategies are actually used, that three-variable system has to be solved and checked: if it produces a negative probability, that strategy isn't part of the equilibrium, and the problem reduces to two strategies instead.",
+      "Both outcomes are worth seeing, so each step below shows the same procedure twice: once on the values this lab started with, where the check fails and the mix collapses to two strategies, and once on a second set of values where the check passes and all three strategies stay in play.",
     ],
     steps: [
       {
@@ -254,7 +372,55 @@ const generatePages = (): Page[] => [
               The Attacker should attack Server 1 with probability{" "}
               {asPercent(q)} and Server 2 with probability {asPercent(1 - q)}.
             </>,
+            "That feasibility check is the part worth remembering, it's what decides whether you're solving a three-strategy problem or a two-strategy one. Use the button below to run the same setup on a value set where the third strategy survives.",
           ];
+        },
+        alternate: {
+          label: "See the three-strategy version",
+          values: MIXED3_ALT_VALUES,
+          response: (matrix) => {
+            const rd = (row: number, col: number) =>
+              matrix[row][col].defender ?? 0;
+            const { s1, s2, ch, ce } = MIXED3_ALT_VALUES;
+            const { q1, q2, q3 } = solveAttackerMix3(matrix);
+            const indifferentValue = roundTo2(
+              q1 * rd(0, 0) + q2 * rd(0, 1) + q3 * rd(0, 2),
+            );
+
+            return [
+              `The matrix has been rebuilt with S1 = ${s1}, S2 = ${s2}, Ch = ${ch}, and Ce = ${ce}. Nothing about the method changes, only the numbers it's run on.`,
+              "The Attacker's mix needs three probabilities: q1 = P(Attack S1), q2 = P(Attack S2), and q3 = 1 - (q1 + q2) = P(No Action). For the Attacker to be willing to spread across all three, the Defender has to be left indifferent between all three of the Defender's own strategies, so write out the Defender's expected payoff for each one.",
+              `Defend Server 1: E[Rd] = ${rd(0, 0)}q1 + ${rd(0, 1)}q2 + ${rd(0, 2)}q3`,
+              `Defend Server 2: E[Rd] = ${rd(1, 0)}q1 + ${rd(1, 1)}q2 + ${rd(1, 2)}q3`,
+              `No Action: E[Rd] = ${rd(2, 0)}q1 + ${rd(2, 1)}q2 + ${rd(2, 2)}q3`,
+              `Setting all three equal to each other and substituting q3 = 1 - q1 - q2 gives q1 = ${q1.toFixed(3)} and q2 = ${q2.toFixed(3)}.`,
+              <>
+                Now the feasibility check that failed last time: q3 = 1 - q1 -
+                q2 ={" "}
+                <strong className="dynamic-highlight">{q3.toFixed(3)}</strong>.
+                This time it's positive, so all three probabilities are valid
+                and the third strategy stays in the mix. No reduction to two
+                strategies is needed.
+              </>,
+              <>
+                The Attacker's Mixed Nash Equilibrium is a genuine three-way
+                split:{" "}
+                <strong className="dynamic-highlight">
+                  {asPercent(q1)} Attack Server 1
+                </strong>
+                ,{" "}
+                <strong className="dynamic-highlight">
+                  {asPercent(q2)} Attack Server 2
+                </strong>
+                , and{" "}
+                <strong className="dynamic-highlight">
+                  {asPercent(q3)} No Action
+                </strong>
+                .
+              </>,
+              `Sanity check: against that mix the Defender earns ${indifferentValue} from Defend Server 1, Defend Server 2, and No Action alike. All three being equal is exactly what "indifferent" means, and it's why the Defender is willing to randomize instead of locking onto one strategy.`,
+            ];
+          },
         },
       },
       {
@@ -281,7 +447,54 @@ const generatePages = (): Page[] => [
               The Defender should defend Server 1 with probability{" "}
               {asPercent(p)} and Server 2 with probability {asPercent(1 - p)}.
             </>,
+            "As with the Attacker, this two-strategy answer is a consequence of these particular values. The button below runs the Defender's side on the same alternate value set from the previous step.",
           ];
+        },
+        alternate: {
+          label: "See the three-strategy version",
+          values: MIXED3_ALT_VALUES,
+          response: (matrix) => {
+            const ra = (row: number, col: number) =>
+              matrix[row][col].attacker ?? 0;
+            const { s1, s2, ch, ce } = MIXED3_ALT_VALUES;
+            const { p1, p2, p3 } = solveDefenderMix3(matrix);
+            const indifferentValue = roundTo2(
+              p1 * ra(0, 0) + p2 * ra(1, 0) + p3 * ra(2, 0),
+            );
+
+            return [
+              `Same alternate values as the previous step: S1 = ${s1}, S2 = ${s2}, Ch = ${ch}, Ce = ${ce}.`,
+              "The Defender's mix needs three probabilities too: p1 = P(Defend S1), p2 = P(Defend S2), and p3 = 1 - (p1 + p2) = P(No Action). For the Attacker to be willing to spread across all three of their strategies, the Defender's mix has to leave the Attacker indifferent between Attack S1, Attack S2, and No Action.",
+              "This is the exact same system that came out infeasible with the original values, the one that forced everything down to two strategies. The Attacker's No Action payoff is always 0, so both equations are set equal to 0.",
+              `From Attack S1: ${ra(0, 0)}p1 + ${ra(1, 0)}p2 + ${ra(2, 0)}p3 = 0`,
+              `From Attack S2: ${ra(0, 1)}p1 + ${ra(1, 1)}p2 + ${ra(2, 1)}p3 = 0`,
+              `Substituting p3 = 1 - p1 - p2 and solving the two equations together gives p1 = ${p1.toFixed(3)} and p2 = ${p2.toFixed(3)}.`,
+              <>
+                Feasibility check: p3 = 1 - p1 - p2 ={" "}
+                <strong className="dynamic-highlight">{p3.toFixed(3)}</strong>.
+                Positive this time, so the Defender's three-way mix is valid
+                too. With the original values this same number came out
+                negative, which is what ruled the third strategy out.
+              </>,
+              <>
+                The Defender's Mixed Nash Equilibrium is also a three-way
+                split:{" "}
+                <strong className="dynamic-highlight">
+                  {asPercent(p1)} Defend Server 1
+                </strong>
+                ,{" "}
+                <strong className="dynamic-highlight">
+                  {asPercent(p2)} Defend Server 2
+                </strong>
+                , and{" "}
+                <strong className="dynamic-highlight">
+                  {asPercent(p3)} No Action
+                </strong>
+                .
+              </>,
+              `Sanity check: against that mix all three of the Attacker's options are worth exactly ${indifferentValue}, so the Attacker is genuinely indifferent and willing to randomize. Put the two steps together and this game's Mixed Nash Equilibrium has both players using all three strategies, which is what the original values could never produce.`,
+            ];
+          },
         },
       },
     ],
@@ -447,11 +660,6 @@ interface HighlightedServer {
   server: 1 | 2 | 3;
 }
 
-const EXAMPLE_S1 = 45;
-const EXAMPLE_S2 = 30;
-const EXAMPLE_CH = 4;
-const EXAMPLE_CE = 7;
-
 const calculateLab2Matrix = (
   s1: number,
   s2: number,
@@ -521,8 +729,9 @@ const generateBlankMatrix = (): Payoff3x3[][] => [
 ];
 
 export const ExampleLab2 = () => {
-  const [matrix, setMatrix] = useState<Payoff3x3[][]>(generateBlankMatrix);
   const [showIntro, setShowIntro] = useState(true);
+  const [hasBegun, setHasBegun] = useState(false);
+  const [showAlternate, setShowAlternate] = useState(false);
   const [clickedCell, setClickedCell] = useState<ClickedCell | null>(null);
   const [highlightedServer, setHighlightedServer] =
     useState<HighlightedServer | null>(null);
@@ -540,11 +749,44 @@ export const ExampleLab2 = () => {
   const isLastStepInPage = stepIndex === currentPage.steps.length - 1;
   const isLastPage = pageIndex === pages.length - 1;
 
-  const hasBegun = matrix[0][0].defender !== null;
+  // Only three steps have a second form. While one is showing, the whole
+  // matrix is rebuilt from that step's values; every other step (and this
+  // one, once you navigate away or switch back) uses PRIMARY_VALUES.
+  const alternate = currentStep?.alternate;
+  const isAlternateActive = showAlternate && alternate !== undefined;
+  const activeValues =
+    showAlternate && alternate ? alternate.values : PRIMARY_VALUES;
+
+  const matrix = useMemo(
+    () =>
+      hasBegun
+        ? calculateLab2Matrix(
+            activeValues.s1,
+            activeValues.s2,
+            activeValues.ch,
+            activeValues.ce,
+          )
+        : generateBlankMatrix(),
+    [hasBegun, activeValues],
+  );
+
+  const activeHighlightCell =
+    showAlternate && alternate
+      ? alternate.highlightCell
+      : currentStep?.highlightCell;
+  const activeHighlightServer =
+    showAlternate && alternate
+      ? alternate.highlightServer
+      : currentStep?.highlightServer;
 
   const isMixedNEPage = currentPage.topic === "Mixed Nash Equilibrium";
   const showAttackerMix = isRevealed && isMixedNEPage && stepIndex === 0;
   const showDefenderMix = isRevealed && isMixedNEPage && stepIndex === 1;
+  // In the alternate form the mix genuinely spans all three strategies, so
+  // the headers switch from (q)/(1-q) to (q1)/(q2)/(q3).
+  const showThreeWayMix = isAlternateActive && isMixedNEPage && isRevealed;
+  const attackerMix3 = solveAttackerMix3(matrix);
+  const defenderMix3 = solveDefenderMix3(matrix);
   const mixedDefenderA = matrix[0][0].defender ?? 0; // Defend S1, Attack S1
   const mixedDefenderB = matrix[0][1].defender ?? 0; // Defend S1, Attack S2
   const mixedDefenderC = matrix[1][0].defender ?? 0; // Defend S2, Attack S1
@@ -587,48 +829,41 @@ export const ExampleLab2 = () => {
   };
 
   const handleBeginWalkthrough = () => {
-    setMatrix(
-      calculateLab2Matrix(EXAMPLE_S1, EXAMPLE_S2, EXAMPLE_CH, EXAMPLE_CE),
-    );
+    setHasBegun(true);
     setShowIntro(false);
   };
 
   const handleReveal = () => {
     setRevealedSteps((prev) => new Set(prev).add(currentStepKey));
-    if (currentStep.highlightCell) {
-      handleCellClick(
-        currentStep.highlightCell.row,
-        currentStep.highlightCell.col,
-      );
-    }
-    if (currentStep.highlightServer) {
-      highlightServer(
-        currentStep.highlightServer.player,
-        currentStep.highlightServer.server,
-      );
-    }
   };
 
+  // Navigating to a different step always drops back to the original
+  // values, so the other problems are never left running on a step's
+  // alternate value set.
+  useEffect(() => {
+    setShowAlternate(false);
+  }, [pageIndex, stepIndex, showIntro]);
+
+  // Highlights follow whichever form is currently showing, and clear
+  // themselves the moment anything about that changes.
   useEffect(() => {
     if (showIntro) {
       return;
     }
     clearSelection();
-    if (isRevealed) {
-      if (currentStep.highlightCell) {
-        handleCellClick(
-          currentStep.highlightCell.row,
-          currentStep.highlightCell.col,
-        );
-      }
-      if (currentStep.highlightServer) {
-        highlightServer(
-          currentStep.highlightServer.player,
-          currentStep.highlightServer.server,
-        );
-      }
+    if (!isRevealed) {
+      return;
     }
-  }, [pageIndex, stepIndex, showIntro]);
+    if (activeHighlightCell) {
+      handleCellClick(activeHighlightCell.row, activeHighlightCell.col);
+    }
+    if (activeHighlightServer) {
+      highlightServer(
+        activeHighlightServer.player,
+        activeHighlightServer.server,
+      );
+    }
+  }, [pageIndex, stepIndex, showIntro, showAlternate, isRevealed]);
 
   const handleNextQuestion = () => {
     if (showIntro) {
@@ -671,31 +906,38 @@ export const ExampleLab2 = () => {
     <div className="lab-panel-columns">
       <div className="lab-panel-static">
         <div className="static-lab lab2-static-lab">
-          <div className="lab2-variables-panel">
+          <div
+            className={`lab2-variables-panel${
+              isAlternateActive ? " alternate" : ""
+            }`}
+          >
             <div className="lab2-variables-row">
               <span className="lab2-variables-label">S1</span>
               <span className="lab2-variables-value">
-                {hasBegun ? EXAMPLE_S1 : "-"}
+                {hasBegun ? activeValues.s1 : "-"}
               </span>
             </div>
             <div className="lab2-variables-row">
               <span className="lab2-variables-label">S2</span>
               <span className="lab2-variables-value">
-                {hasBegun ? EXAMPLE_S2 : "-"}
+                {hasBegun ? activeValues.s2 : "-"}
               </span>
             </div>
             <div className="lab2-variables-row">
               <span className="lab2-variables-label">Ch</span>
               <span className="lab2-variables-value">
-                {hasBegun ? EXAMPLE_CH : "-"}
+                {hasBegun ? activeValues.ch : "-"}
               </span>
             </div>
             <div className="lab2-variables-row">
               <span className="lab2-variables-label">Ce</span>
               <span className="lab2-variables-value">
-                {hasBegun ? EXAMPLE_CE : "-"}
+                {hasBegun ? activeValues.ce : "-"}
               </span>
             </div>
+            {isAlternateActive && (
+              <p className="lab2-variables-alt-note">Alternate values</p>
+            )}
           </div>
 
           <div className="lab-graph">
@@ -727,10 +969,16 @@ export const ExampleLab2 = () => {
             >
               <span className="mix-header-line">
                 Server 1
-                {showAttackerMix && <span className="mix-label">(q)</span>}
+                {showAttackerMix && (
+                  <span className="mix-label">
+                    {showThreeWayMix ? "(q1)" : "(q)"}
+                  </span>
+                )}
               </span>
               {showAttackerMix && (
-                <span className="mix-percent">{asPercent(mixedQ)}</span>
+                <span className="mix-percent">
+                  {asPercent(showThreeWayMix ? attackerMix3.q1 : mixedQ)}
+                </span>
               )}
             </div>
             <div
@@ -740,10 +988,16 @@ export const ExampleLab2 = () => {
             >
               <span className="mix-header-line">
                 Server 2
-                {showAttackerMix && <span className="mix-label">(1-q)</span>}
+                {showAttackerMix && (
+                  <span className="mix-label">
+                    {showThreeWayMix ? "(q2)" : "(1-q)"}
+                  </span>
+                )}
               </span>
               {showAttackerMix && (
-                <span className="mix-percent">{asPercent(1 - mixedQ)}</span>
+                <span className="mix-percent">
+                  {asPercent(showThreeWayMix ? attackerMix3.q2 : 1 - mixedQ)}
+                </span>
               )}
             </div>
             <div
@@ -751,7 +1005,17 @@ export const ExampleLab2 = () => {
                 isServerHighlighted("attacker", 3) ? " selected" : ""
               }`}
             >
-              No Action
+              <span className="mix-header-line">
+                No Action
+                {showAttackerMix && showThreeWayMix && (
+                  <span className="mix-label">(q3)</span>
+                )}
+              </span>
+              {showAttackerMix && showThreeWayMix && (
+                <span className="mix-percent">
+                  {asPercent(attackerMix3.q3)}
+                </span>
+              )}
             </div>
 
             <div className="matrix-axis-label matrix-axis-defender-3x3">
@@ -764,10 +1028,16 @@ export const ExampleLab2 = () => {
             >
               <span className="mix-header-line">
                 Server 1
-                {showDefenderMix && <span className="mix-label">(p)</span>}
+                {showDefenderMix && (
+                  <span className="mix-label">
+                    {showThreeWayMix ? "(p1)" : "(p)"}
+                  </span>
+                )}
               </span>
               {showDefenderMix && (
-                <span className="mix-percent">{asPercent(mixedP)}</span>
+                <span className="mix-percent">
+                  {asPercent(showThreeWayMix ? defenderMix3.p1 : mixedP)}
+                </span>
               )}
             </div>
             <div
@@ -777,10 +1047,16 @@ export const ExampleLab2 = () => {
             >
               <span className="mix-header-line">
                 Server 2
-                {showDefenderMix && <span className="mix-label">(1-p)</span>}
+                {showDefenderMix && (
+                  <span className="mix-label">
+                    {showThreeWayMix ? "(p2)" : "(1-p)"}
+                  </span>
+                )}
               </span>
               {showDefenderMix && (
-                <span className="mix-percent">{asPercent(1 - mixedP)}</span>
+                <span className="mix-percent">
+                  {asPercent(showThreeWayMix ? defenderMix3.p2 : 1 - mixedP)}
+                </span>
               )}
             </div>
             <div
@@ -788,7 +1064,17 @@ export const ExampleLab2 = () => {
                 isServerHighlighted("defender", 3) ? " selected" : ""
               }`}
             >
-              No Action
+              <span className="mix-header-line">
+                No Action
+                {showDefenderMix && showThreeWayMix && (
+                  <span className="mix-label">(p3)</span>
+                )}
+              </span>
+              {showDefenderMix && showThreeWayMix && (
+                <span className="mix-percent">
+                  {asPercent(defenderMix3.p3)}
+                </span>
+              )}
             </div>
 
             {matrix.map((row, rowIndex) =>
@@ -875,7 +1161,7 @@ export const ExampleLab2 = () => {
                   aria-label="Always visible"
                   min={1}
                   max={50}
-                  defaultValue={EXAMPLE_S1}
+                  defaultValue={PRIMARY_VALUES.s1}
                   step={1}
                   marks={ServerMarks}
                   disabled
@@ -887,7 +1173,7 @@ export const ExampleLab2 = () => {
                   aria-label="Always visible"
                   min={1}
                   max={50}
-                  defaultValue={EXAMPLE_S2}
+                  defaultValue={PRIMARY_VALUES.s2}
                   step={1}
                   marks={ServerMarks}
                   disabled
@@ -900,7 +1186,7 @@ export const ExampleLab2 = () => {
                   aria-label="Always visible"
                   min={1}
                   max={10}
-                  defaultValue={EXAMPLE_CH}
+                  defaultValue={PRIMARY_VALUES.ch}
                   step={1}
                   marks={NonServerMarks}
                   valueLabelDisplay="on"
@@ -911,7 +1197,7 @@ export const ExampleLab2 = () => {
                   aria-label="Always visible"
                   min={1}
                   max={10}
-                  defaultValue={EXAMPLE_CE}
+                  defaultValue={PRIMARY_VALUES.ce}
                   step={1}
                   disabled
                   marks={NonServerMarks}
@@ -981,7 +1267,10 @@ export const ExampleLab2 = () => {
                 ))}
 
                 {isRevealed &&
-                  currentStep.response(matrix).map((line, index) => (
+                  (showAlternate && alternate
+                    ? alternate.response(matrix)
+                    : currentStep.response(matrix)
+                  ).map((line, index) => (
                     <p className="dynamic-response" key={`response-${index}`}>
                       {line}
                     </p>
@@ -997,6 +1286,26 @@ export const ExampleLab2 = () => {
                       onClick={handleReveal}
                     >
                       Show Answer
+                    </CButton>
+                  )}
+                  {isRevealed && alternate && !showAlternate && (
+                    <CButton
+                      style={{
+                        backgroundColor: LAB2_ACCENT,
+                        borderColor: LAB2_ACCENT,
+                      }}
+                      onClick={() => setShowAlternate(true)}
+                    >
+                      {alternate.label}
+                    </CButton>
+                  )}
+                  {isRevealed && alternate && showAlternate && (
+                    <CButton
+                      color="secondary"
+                      variant="outline"
+                      onClick={() => setShowAlternate(false)}
+                    >
+                      Back to the original values
                     </CButton>
                   )}
                 </div>
