@@ -52,7 +52,7 @@ export interface GameValues {
 //   - every comparison at every decision node is strict, so the SPNE is unique.
 export const EXAMPLE_VALUES: GameValues = {
   servers: { S1: 10, S2: 6, S3: 9, S4: 5 },
-  edgeCosts: { entryN1: 2, entryN2: 2, n1S1: 8, n1S2: 1, n2S3: 1, n2S4: 1 },
+  edgeCosts: { entryN1: 2, entryN2: 2, n1S1: 8, n1S2: 1, n2S3: 1, n2S4: 2 },
   honeypotCost: 3,
   capturePenalty: 4,
 };
@@ -89,6 +89,15 @@ export type GameNode =
       trapped: boolean;
       payoff: Payoff;
     };
+
+/**
+ * The two halves of GameNode, named so callers can hold one without TypeScript
+ * widening it back to the union. `Extract<Union, { kind: "..." }>` picks a
+ * single member of a discriminated union by its tag, which beats redeclaring
+ * the shape and letting the two drift apart.
+ */
+export type DecisionNode = Extract<GameNode, { kind: "decision" }>;
+export type TerminalNode = Extract<GameNode, { kind: "terminal" }>;
 
 export interface Solved {
   value: Payoff;
@@ -300,79 +309,58 @@ export const buildAttackerFirstTree = (values: GameValues): GameNode => ({
   })),
 });
 
-// Defender-first: the defender commits to a node (no opt-out), every server
-// beneath it gains the honeypot property, and the attacker then picks any of
-// the four servers having seen the defense. Two decision layers, 8 terminals.
+// Defender-first: the defender commits to a node, every server beneath it gains
+// the honeypot property, and the attacker is confined to that node's two
+// servers. Two decision layers, 4 terminals, all of them honeypot captures.
 //
-// The attacker choosing freely is what keeps this a live game. If the attacker
-// were instead forced onto the defended node they would always be caught, so D
-// would always be 0, so Ud = SUM(Sx) - Ch would be identical down both
-// branches and the defender would have no decision to make at all. The
-// defender's move only matters because it changes where the attacker can
-// profitably go.
+// IMPORTANT, and this is a known property rather than a bug: because the
+// attacker can only reach honeypotted servers, they are always caught, so D is
+// always 0 and `Ud = SUM(Sx) - Ch` is the SAME NUMBER at all four terminals.
+// The defender is therefore indifferent at the root and this game has no unique
+// SPNE (`tiedNodes` reports the root).
 //
-// The two trapped servers in each branch are strictly dominated and never
-// chosen, so they are drawn but never played. They earn their place by showing
-// the student *why* the attacker declines them.
-export const buildDefenderFirstTree = (values: GameValues): GameNode => {
-  const bridgeOf: Record<ServerId, BridgeId> = {
-    S1: "N1",
-    S2: "N1",
-    S3: "N2",
-    S4: "N2",
-  };
-  const legOf: Record<ServerId, keyof GameValues["edgeCosts"]> = {
-    S1: "n1S1",
-    S2: "n1S2",
-    S3: "n2S3",
-    S4: "n2S4",
-  };
-  const servers: ServerId[] = ["S1", "S2", "S3", "S4"];
-
-  return {
-    kind: "decision",
-    id: "root",
-    player: "defender",
-    label: "Defender chooses a node to defend",
-    actions: (["N1", "N2"] as BridgeId[]).map((defended) => {
-      const id = `a:defend-${defended}`;
-      return {
-        id: `root:${defended}`,
-        label: `Defend ${defended}`,
-        owner: "defender" as const,
-        child: {
-          kind: "decision" as const,
-          id,
-          player: "attacker" as const,
-          label: `Attacker, ${defended} defended`,
-          actions: servers.map((server) => {
-            const bridge = bridgeOf[server];
-            const pathCost =
-              values.edgeCosts[BRANCH[bridge].entry] +
-              values.edgeCosts[legOf[server]];
-            return {
-              id: `${id}:${server}`,
-              label: `Attack ${server}`,
-              owner: "attacker" as const,
-              exploitCost: values.edgeCosts[legOf[server]],
-              child: makeTerminal(
-                `t:defend-${defended}:${server}`,
-                server,
-                bridge === defended,
-                values,
-                pathCost,
-                // Always true here: the defender committed to a node and paid
-                // for the honeypot up front. That cost is sunk whether or not
-                // the attacker actually walks into it.
-                true,
-              ),
-            };
-          }),
-        },
-      };
-    }),
-  };
-};
+// Distinct exploit costs fix the ATTACKER's side of this: with n1S1 != n1S2 and
+// n2S3 != n2S4 the attacker has a real, strict comparison inside each branch,
+// choosing the cheaper way to get caught. They cannot fix the defender's side,
+// because exploit costs appear only in Ua and never in Ud.
+export const buildDefenderFirstTree = (values: GameValues): GameNode => ({
+  kind: "decision",
+  id: "root",
+  player: "defender",
+  label: "Defender chooses a node to defend",
+  actions: (["N1", "N2"] as BridgeId[]).map((defended) => {
+    const b = BRANCH[defended];
+    const id = `a:defend-${defended}`;
+    const leg = (server: ServerId, edge: keyof GameValues["edgeCosts"]) => ({
+      id: `${id}:${server}`,
+      label: `Attack ${server}`,
+      owner: "attacker" as const,
+      exploitCost: values.edgeCosts[edge],
+      child: makeTerminal(
+        `t:defend-${defended}:${server}`,
+        server,
+        // Every server under the defended node is honeypotted, so the attacker
+        // is caught wherever they go.
+        true,
+        values,
+        values.edgeCosts[b.entry] + values.edgeCosts[edge],
+        true,
+      ),
+    });
+    return {
+      id: `root:${defended}`,
+      label: `Defend ${defended}`,
+      owner: "defender" as const,
+      child: {
+        kind: "decision" as const,
+        id,
+        player: "attacker" as const,
+        label: `Attacker at ${defended}, both servers honeypotted`,
+        actions: [leg(b.left, b.leftEdge), leg(b.right, b.rightEdge)],
+      },
+    };
+  }),
+});
 
 // ---------------------------------------------------------------------------
 // Helpers the UI needs
@@ -435,8 +423,8 @@ export const findNode = (root: GameNode, id: string): GameNode | undefined => {
   return undefined;
 };
 
-export const collectDecisionNodes = (root: GameNode): GameNode[] => {
-  const out: GameNode[] = [];
+export const collectDecisionNodes = (root: GameNode): DecisionNode[] => {
+  const out: DecisionNode[] = [];
   const walk = (node: GameNode) => {
     if (node.kind === "terminal") return;
     out.push(node);
@@ -449,8 +437,13 @@ export const collectDecisionNodes = (root: GameNode): GameNode[] => {
 // A node is on the bottom decision tier when every one of its actions leads
 // straight to a terminal. Derived rather than matched on the id scheme so the
 // walkthrough keeps working if the tree shape ever changes.
+// Deliberately a plain boolean rather than a `node is DecisionNode` type guard.
+// As a guard, TypeScript would narrow the NEGATIVE branch of
+// `filter(n => !isBottomTier(n))` to `never` when the input is already
+// DecisionNode[], which is exactly how Practice splits the tiers apart.
 export const isBottomTier = (node: GameNode): boolean =>
-  node.kind === "decision" && node.actions.every((a) => a.child.kind === "terminal");
+  node.kind === "decision" &&
+  node.actions.every((a) => a.child.kind === "terminal");
 
 // Splits the actions leaving each of `nodeIds` into the one backward induction
 // kept and the ones it eliminated, which is what the renderer draws.
@@ -468,4 +461,161 @@ export const prunedAndSurviving = (
     node.actions.forEach((a) => (a.id === best ? surviving : pruned).add(a.id));
   });
   return { surviving, pruned };
+};
+
+// ---------------------------------------------------------------------------
+// Practice game generation
+// ---------------------------------------------------------------------------
+
+// Everything Practice needs to know about a generated game, so the component
+// never has to re-derive it.
+export interface GeneratedGame {
+  values: GameValues;
+  tree: GameNode;
+  solution: Solution;
+}
+
+const randInt = (rng: () => number, lo: number, hi: number): number =>
+  lo + Math.floor(rng() * (hi - lo + 1));
+
+// Which bridge a server hangs off, and the leg that reaches it.
+const SERVER_BRIDGE: Record<ServerId, BridgeId> = {
+  S1: "N1",
+  S2: "N1",
+  S3: "N2",
+  S4: "N2",
+};
+
+// A generated game is only usable if every one of these holds. Together they
+// guarantee the tree is gradeable AND that it teaches the same lesson every
+// time, so a student who hits Restart gets different numbers at the same
+// difficulty rather than an easier tree.
+export const describeUnusable = (values: GameValues): string | null => {
+  // The two legs under a bridge must differ, or the attacker can tie when the
+  // only thing separating two options is the cost of reaching them.
+  if (values.edgeCosts.n1S1 === values.edgeCosts.n1S2) return "N1 legs equal";
+  if (values.edgeCosts.n2S3 === values.edgeCosts.n2S4) return "N2 legs equal";
+
+  const tree = buildAttackerFirstTree(values);
+  const solution = solveTree(tree);
+
+  // No indifference anywhere, or the SPNE is not unique and cannot be graded.
+  if (tiedNodes(tree, solution).length > 0) return "tie";
+
+  // The attacker must never prefer being caught to a real capture.
+  if (trapPreferredNodes(tree, solution).length > 0) return "trap preferred";
+
+  // The two defender nodes must reach different conclusions, or the student can
+  // pattern-match one rule across the whole tree instead of reasoning.
+  const choiceAt = (id: string) =>
+    solution[id].bestActionId?.slice(id.length + 1) ?? "";
+  if (choiceAt("d:N1") === choiceAt("d:N2")) return "defender nodes agree";
+
+  // The greedy trap must be live: the attacker's single best terminal has to
+  // sit in the branch they do NOT enter. Otherwise a student who ignores the
+  // defender entirely still picks the right first move.
+  let best: { server: ServerId; value: number } | null = null;
+  const scan = (node: GameNode) => {
+    if (node.kind === "terminal") {
+      if (!node.trapped && (best === null || node.payoff.attacker > best.value)) {
+        best = { server: node.server, value: node.payoff.attacker };
+      }
+      return;
+    }
+    node.actions.forEach((a) => scan(a.child));
+  };
+  scan(tree);
+  if (!best) return "no reachable capture";
+  const entered = solution["root"].bestActionId?.slice("root:".length);
+  if (SERVER_BRIDGE[(best as { server: ServerId }).server] === entered) {
+    return "greedy answer is correct";
+  }
+
+  // The attacker must actually come out ahead, or the lesson is muddied by a
+  // game nobody would play.
+  if (solution["root"].value.attacker <= 0) return "attacker cannot profit";
+
+  return null;
+};
+
+// Rejection sampling. The constraints are cheap (one solve per candidate), so
+// this is far simpler than trying to construct a valid game directly.
+export const generateGame = (
+  rng: () => number = Math.random,
+  maxAttempts = 20000,
+): GeneratedGame => {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const values: GameValues = {
+      servers: {
+        S1: randInt(rng, 6, 15),
+        S2: randInt(rng, 6, 15),
+        S3: randInt(rng, 6, 15),
+        S4: randInt(rng, 6, 15),
+      },
+      edgeCosts: {
+        entryN1: randInt(rng, 1, 3),
+        entryN2: randInt(rng, 1, 3),
+        n1S1: randInt(rng, 1, 9),
+        n1S2: randInt(rng, 1, 9),
+        n2S3: randInt(rng, 1, 9),
+        n2S4: randInt(rng, 1, 9),
+      },
+      honeypotCost: randInt(rng, 2, 6),
+      capturePenalty: randInt(rng, 3, 7),
+    };
+    if (describeUnusable(values) === null) {
+      const tree = buildAttackerFirstTree(values);
+      return { values, tree, solution: solveTree(tree) };
+    }
+  }
+  throw new Error("Could not generate a usable Lab 3 game.");
+};
+
+// The honeypot cost at which a defender node flips from "worth it" to "not".
+//
+// The defender buys the honeypot when it shifts the attacker onto a cheaper
+// server by more than the honeypot costs:
+//
+//   Ud(honeypot)  >  Ud(nothing)
+//   SUM(Sx) - D_shift - Ch  >  SUM(Sx) - D_none
+//   D_none - D_shift  >  Ch
+//
+// So the break-even honeypot cost is Ch* = D_none - D_shift, where the two
+// options pay exactly the same. Rearranging in terms of the two Ud figures
+// already on the tree, Ch* = Ud(honeypot) - Ud(nothing) + Ch.
+//
+// Returns null when this node declined the honeypot, since there is then no
+// threshold to find. This is the one Practice question that cannot be answered
+// by comparing two numbers on screen; it has to be derived.
+export const honeypotThreshold = (
+  node: DecisionNode,
+  solution: Solution,
+  values: GameValues,
+): number | null => {
+  if (node.player !== "defender") return null;
+  const chosen = node.actions.find(
+    (a) => a.id === solution[node.id].bestActionId,
+  );
+  const none = node.actions.find((a) => a.label === "No honeypot");
+  if (!chosen || !none || chosen.id === none.id) return null;
+
+  const udChosen = solution[chosen.child.id].value.defender;
+  const udNone = solution[none.child.id].value.defender;
+  return udChosen - udNone + values.honeypotCost;
+};
+
+// The defender node the threshold question is asked about: whichever one bought
+// a honeypot. The generator guarantees the two defender nodes disagree, so at
+// most one can be "No honeypot" and at least one always honeypots.
+export const honeypotNode = (
+  tree: GameNode,
+  solution: Solution,
+  values: GameValues,
+): { node: DecisionNode; threshold: number } | null => {
+  for (const node of collectDecisionNodes(tree)) {
+    if (node.player !== "defender") continue;
+    const threshold = honeypotThreshold(node, solution, values);
+    if (threshold !== null) return { node, threshold };
+  }
+  return null;
 };

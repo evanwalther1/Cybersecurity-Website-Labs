@@ -15,24 +15,26 @@ import type { Action, GameNode, Solution } from "./gameTree";
 // That produces a tree where no subtrees overlap and every parent sits centered
 // over its children, which is all we need for a fixed-shape tree like this one.
 
-// These four constants set the tree's proportions. The viewBox is sized from
-// them, and the whole drawing is then scaled to fit its panel, so SHRINKING
-// X_SLOT or growing Y_GAP makes the rendered tree bigger as well as more
-// vertical: a narrower viewBox means a larger scale factor for the same panel.
-// X_SLOT is floored by TERMINAL_W (the boxes must not touch) and Y_GAP is
-// floored by the edge labels needing room between tiers.
+// These constants set the tree's proportions. The viewBox is sized from them
+// and the whole drawing is then scaled to fit its panel, so SHRINKING X_SLOT or
+// growing Y_GAP makes the rendered tree bigger as well as more vertical: a
+// narrower viewBox means a larger scale factor for the same panel. X_SLOT is
+// floored by TERMINAL_W (the boxes must not touch) and Y_GAP by the edge labels
+// needing room between tiers.
 const X_SLOT = 68; // horizontal distance between adjacent terminals
 const Y_GAP = 160; // vertical distance between tiers
-// The margins are asymmetric on purpose. The left only has to clear half a
-// terminal box, but the right also has to hold the value labels that backward
-// induction writes beside each node, and the rightmost of those would
-// otherwise run past the viewBox edge.
+// Asymmetric on purpose. The left only has to clear half a terminal box, but
+// the right also has to hold the value labels backward induction writes beside
+// each node, and the rightmost of those would otherwise run past the viewBox.
 const MARGIN_LEFT = 30;
 const MARGIN_RIGHT = 57;
 const MARGIN_Y = 38;
 const TERMINAL_W = 56;
 const TERMINAL_H = 44;
 const NODE_R = 22;
+// Where along an edge its click target begins, as a fraction from parent to
+// child. Keeps sibling hit areas from overlapping near their shared parent.
+const HIT_START = 0.34;
 
 interface Placed {
   node: GameNode;
@@ -144,8 +146,22 @@ export interface GameTreeSVGProps {
   playedActionIds?: Set<string>;
   /** Show terminal payoff pairs. Off during the read-the-graph step. */
   showPayoffs?: boolean;
+  /**
+   * When present, ONLY these terminals show their payoffs; every other one
+   * renders "?". Practice uses it for the recon round, where the student works
+   * the payoffs out from the formulas one terminal at a time.
+   */
+  visiblePayoffIds?: ReadonlySet<string>;
   /** Only actions leaving this node are clickable. */
   clickableNodeId?: string;
+  /** Node the student is currently being asked about; gets a pulsing ring. */
+  activeNodeId?: string;
+  /**
+   * Text to show beside a node INSTEAD of its solved value. Practice uses this
+   * to display what the student entered, right or wrong, rather than the
+   * solver's answer.
+   */
+  nodeValueLabels?: Record<string, string>;
   onActionClick?: (action: Action) => void;
 }
 
@@ -163,7 +179,10 @@ export const GameTreeSVG = ({
   focusNodeId,
   playedActionIds,
   showPayoffs = true,
+  visiblePayoffIds,
   clickableNodeId,
+  activeNodeId,
+  nodeValueLabels,
   onActionClick,
 }: GameTreeSVGProps) => {
   const layout = useMemo(() => buildLayout(tree), [tree]);
@@ -205,34 +224,45 @@ export const GameTreeSVG = ({
         // server, and repeating it at X_SLOT spacing would collide.
         const label =
           action.owner === "defender"
-            ? action.label.replace("Honeypot ", "HP ").replace("No honeypot", "none")
+            ? action.label
+                .replace("Honeypot ", "HP ")
+                .replace("No honeypot", "none")
             : child.node.kind === "terminal"
               ? `·${action.exploitCost}`
               : `${action.label.replace("Attack ", "")} ·${action.exploitCost}`;
 
-        const midX = (parent.x + child.x) / 2;
-        const midY = (parent.y + child.y) / 2;
+        // The drawn edge stops short at both ends so it does not run under the
+        // parent circle or the child's box. The hit line is measured along
+        // THESE endpoints, not parent-centre to child-centre, so the click band
+        // sits exactly on the line the student can see.
+        const x1 = parent.x;
+        const y1 = parent.y + NODE_R;
+        const x2 = child.x;
+        const y2 =
+          child.y - (child.node.kind === "terminal" ? TERMINAL_H / 2 : NODE_R);
+
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
 
         return (
           <g key={action.id} className={classes}>
-            <line
-              x1={parent.x}
-              y1={parent.y + NODE_R}
-              x2={child.x}
-              y2={child.y - (child.node.kind === "terminal" ? TERMINAL_H / 2 : NODE_R)}
-            />
+            <line x1={x1} y1={y1} x2={x2} y2={y2} />
             <text className="lab3-edge-label" x={midX} y={midY} dy="-3">
               {label}
             </text>
             {clickable && onActionClick && (
               // A fat transparent line over the top so the click target is
-              // forgiving without making the drawn stroke thick.
+              // forgiving without making the drawn stroke thick. It starts
+              // HIT_START of the way down rather than at the parent, because
+              // every edge leaving a node begins at the same point, so hit
+              // areas that reached all the way up would overlap and the last
+              // one drawn would swallow clicks meant for its siblings.
               <line
                 className="lab3-edge-hit"
-                x1={parent.x}
-                y1={parent.y}
-                x2={child.x}
-                y2={child.y}
+                x1={x1 + (x2 - x1) * HIT_START}
+                y1={y1 + (y2 - y1) * HIT_START}
+                x2={x2}
+                y2={y2}
                 onClick={() => onActionClick(action)}
               />
             )}
@@ -268,17 +298,23 @@ export const GameTreeSVG = ({
               </text>
               {showPayoffs && (
                 <text className="lab3-terminal-payoff" x={x} y={y + 13}>
-                  {payoffText(node)}
+                  {visiblePayoffIds && !visiblePayoffIds.has(node.id)
+                    ? "?"
+                    : payoffText(node)}
                 </text>
               )}
             </g>
           );
         }
 
-        const solved = solvedNodeIds?.has(node.id) ? solution?.[node.id] : undefined;
-        const solvedText = solved
-          ? `(${solved.value.attacker}, ${solved.value.defender})`
-          : null;
+        const solved = solvedNodeIds?.has(node.id)
+          ? solution?.[node.id]
+          : undefined;
+        // A supplied label always wins, so Practice can show the student's own
+        // figure next to a node even when it disagrees with the solver.
+        const solvedText =
+          nodeValueLabels?.[node.id] ??
+          (solved ? `(${solved.value.attacker}, ${solved.value.defender})` : null);
 
         return (
           <g
@@ -286,6 +322,7 @@ export const GameTreeSVG = ({
             className={[
               "lab3-node",
               `lab3-node-${node.player}`,
+              node.id === activeNodeId ? "is-active" : "",
               isDim ? "is-dimmed" : "",
             ]
               .filter(Boolean)

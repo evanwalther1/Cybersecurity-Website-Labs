@@ -83,20 +83,46 @@
   opacity: 0.4;
 }
 
-.lab3-edge-hit {
+/* A fat invisible stroke laid over the drawn edge, so the click target is far
+   more forgiving than the 1.5px line it sits on. It starts partway down the
+   edge (see GameTreeSVG) because sibling edges all converge on the same parent
+   point, and overlapping hit areas up there would make the wrong edge win.
+
+   The selector has to be this specific. A bare `.lab3-edge-hit` is one class
+   (specificity 0,1,0) and LOSES to `.lab3-edge line` and
+   `.lab3-edge-attacker line` (both 0,1,1), so both the transparent stroke and
+   the width 34 were being overridden: the hit line was painted in the edge
+   color at width 1.5. That made it show up as a visible stub starting partway
+   down the edge, and it meant the click target was a 1.5px line rather than a
+   34px band. Qualifying with the element and the tree class puts this at
+   (0,3,1), above every generic edge rule. */
+.lab3-tree .lab3-edge line.lab3-edge-hit {
   stroke: transparent;
-  stroke-width: 22;
+  stroke-width: 34;
   cursor: pointer;
 }
 
+/* A clickable edge pulses the line that is ALREADY THERE rather than adding
+   dashes to it. Dashes read as a different kind of edge (pruned ones are
+   dashed), which was the confusing part. This just goes bold, full-strength
+   color, and flickers. */
 .lab3-edge.is-clickable line:first-child {
-  stroke-dasharray: 5 3;
-  animation: lab3-edge-invite 1.4s ease-in-out infinite;
+  stroke-width: 5;
+  animation: lab3-edge-invite 1s ease-in-out infinite;
+}
+
+.lab3-edge-attacker.is-clickable line:first-child {
+  stroke: var(--lab3-attacker);
+}
+
+.lab3-edge-defender.is-clickable line:first-child {
+  stroke: var(--lab3-defender);
 }
 
 @keyframes lab3-edge-invite {
   50% {
-    opacity: 0.45;
+    opacity: 0.3;
+    stroke-width: 3.5;
   }
 }
 
@@ -375,4 +401,48 @@
   width: 100%;
   height: 100%;
   min-height: 0;
+}
+
+/* ---------------------------------------------------- shared-class accents --- */
+
+/* .dynamic-definition, .dynamic-topic and friends live in ExampleLab1.css and
+   are hardcoded to Lab 1's blue (#4dabf7). Lab 2 re-points them at its green
+   under a .lab2-dynamic scope; this is the same trick for Lab 3's pink. Scoping
+   rather than editing ExampleLab1.css keeps each lab's accent in its own file.
+
+   Note Lab 2 only overrode the dark-mode definition panel, so in light mode its
+   hint box is still blue. Both modes are handled here. */
+.lab3-dynamic .dynamic-definition {
+  background: color-mix(in srgb, var(--lab3-accent) 8%, #fff);
+  border-color: color-mix(in srgb, var(--lab3-accent) 28%, #fff);
+}
+
+[data-coreui-theme="dark"] .lab3-dynamic .dynamic-definition {
+  background: color-mix(in srgb, var(--lab3-accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--lab3-accent) 38%, transparent);
+}
+
+.lab3-dynamic .dynamic-definition-icon {
+  color: var(--lab3-accent);
+}
+
+.lab3-dynamic .dynamic-topic {
+  color: var(--lab3-accent);
+}
+
+.lab3-dynamic .concepts-learned-title {
+  color: var(--lab3-accent);
+}
+
+/* The node Practice is currently asking about. A second ring rather than a
+   thicker stroke, so it reads as "attention here" instead of "solved". */
+.lab3-node.is-active circle {
+  stroke-width: 3.5;
+  animation: lab3-node-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes lab3-node-pulse {
+  50% {
+    stroke-width: 6;
+  }
 }

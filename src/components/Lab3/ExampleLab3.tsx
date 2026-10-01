@@ -26,7 +26,7 @@ import {
 } from "./gameTree";
 import type { Action, GameNode } from "./gameTree";
 
-const LAB3_ACCENT = "#c22982";
+export const LAB3_ACCENT = "#c22982";
 
 const V = EXAMPLE_VALUES;
 const SUM_S = totalServerValue(V);
@@ -86,7 +86,9 @@ export const ExampleLab3 = () => {
   );
   const defenderIds = useMemo(
     () =>
-      decisionNodes.filter((n) => n.kind === "decision" && n.player === "defender").map((n) => n.id),
+      decisionNodes
+        .filter((n) => n.kind === "decision" && n.player === "defender")
+        .map((n) => n.id),
     [decisionNodes],
   );
 
@@ -100,7 +102,12 @@ export const ExampleLab3 = () => {
   );
 
   const [stepIndex, setStepIndex] = useState(0);
-  const [isRevealed, setIsRevealed] = useState(false);
+  // Which steps have had their answer revealed, keyed by step index rather than
+  // a single boolean. A boolean would reset every time you navigated, so a step
+  // you had already solved would show "Show Answer" again on the way back.
+  const [revealedSteps, setRevealedSteps] = useState<ReadonlySet<number>>(
+    new Set(),
+  );
 
   // Play-it state. `playNode` is where the attacker currently stands, and the
   // log is the running transcript of the exchange.
@@ -147,6 +154,7 @@ export const ExampleLab3 = () => {
     setPlayNode(next);
   };
 
+  const isRevealed = revealedSteps.has(stepIndex);
   const playFinished = playNode.kind === "terminal";
   const playPayoff = playFinished ? playNode.payoff : null;
 
@@ -158,8 +166,8 @@ export const ExampleLab3 = () => {
       body: (
         <>
           <p className="dynamic-question">
-            This is the network the game is played on. Before any numbers, get
-            the anatomy straight.
+            This is the network the game is played on. Before any numbers, let's
+            get the read the graph properly.
           </p>
           <p className="dynamic-response">
             The <strong>Entry</strong> node at the top is the root, where play
@@ -174,17 +182,16 @@ export const ExampleLab3 = () => {
           </p>
           <p className="dynamic-response">
             A circle tells you <em>whose turn it is</em>, nothing more. The
-            moves themselves are the <strong>edges</strong>. An{" "}
-            <Att>A</Att> circle is the <Att>attacker</Att> choosing, a{" "}
-            <Def>D</Def> circle is the <Def>defender</Def> choosing, and every
-            edge is colored to whoever made that move.
+            moves themselves are the <strong>edges</strong>. An <Att>A</Att>{" "}
+            circle is the <Att>attacker</Att> choosing, a <Def>D</Def> circle is
+            the <Def>defender</Def> choosing, and every edge is colored to
+            whoever made that move.
           </p>
           <div className="lab3-note">
-            Worth pinning down now: an <strong>action</strong> is one move at
-            one node. A <strong>strategy</strong> is a complete plan, one action
-            at every node you own, including nodes you might never reach. Those
-            are different objects, and the difference is the whole point of the
-            last step in this walkthrough.
+            Important: an <strong>action</strong> is one move at one node. A{" "}
+            <strong>strategy</strong> is a complete plan, one action at every
+            node you own, including nodes you might never reach. Those are
+            different objects, and that difference is important
           </div>
         </>
       ),
@@ -223,7 +230,7 @@ export const ExampleLab3 = () => {
             </span>
           </div>
           <p className="dynamic-response">
-            Every edge carries an exploit cost, shown on the diagram as{" "}
+            Every attacker edge carries an exploit cost, shown on the diagram as{" "}
             <code>&middot;n</code>. The attacker pays the cost of{" "}
             <em>every edge they walk</em>.
           </p>
@@ -285,8 +292,8 @@ export const ExampleLab3 = () => {
             Read the tree top to bottom and you get the order of play.
           </p>
           <p className="dynamic-response">
-            <strong>1.</strong> The <Att>attacker</Att> picks an entry point,
-            N1 or N2.
+            <strong>1.</strong> The <Att>attacker</Att> picks an entry point, N1
+            or N2.
           </p>
           <p className="dynamic-response">
             <strong>2.</strong> The <Def>defender</Def> watches that happen and
@@ -304,9 +311,8 @@ export const ExampleLab3 = () => {
           </div>
           <p className="dynamic-response">
             The defender genuinely sees the attacker's first move before
-            choosing. That is not a detail, it is the load-bearing assumption.
-            If the defender were guessing blind, everything that follows would
-            be invalid.
+            choosing. That is not a detail, it is whole point of sequential
+            games with <em>perfect information</em>.
           </p>
         </>
       ),
@@ -325,10 +331,7 @@ export const ExampleLab3 = () => {
           {playLog.length > 0 && (
             <div className="lab3-play-log">
               {playLog.map((entry, index) => (
-                <div
-                  key={index}
-                  className={`lab3-bubble is-${entry.who}`}
-                >
+                <div key={index} className={`lab3-bubble is-${entry.who}`}>
                   <span className="lab3-bubble-who">{entry.who}</span>
                   {entry.text}
                 </div>
@@ -343,11 +346,15 @@ export const ExampleLab3 = () => {
               </p>
               <p className="dynamic-response">
                 Play it again and take a different route. There are six
-                different ways this can go, and it is worth seeing more than
-                one before moving on.
+                different ways this can go, and it is worth seeing more than one
+                before moving on.
               </p>
               <div className="dynamic-controls">
-                <CButton color="secondary" variant="outline" onClick={resetPlay}>
+                <CButton
+                  color="secondary"
+                  variant="outline"
+                  onClick={resetPlay}
+                >
                   <CIcon icon={cilReload} /> Play again
                 </CButton>
               </div>
@@ -364,7 +371,7 @@ export const ExampleLab3 = () => {
           </p>
           <p className="dynamic-response">
             It isn't reachable. The defender sees you enter N2 and honeypots S3,
-            and you end up on S4 with <strong>2</strong>. The best the attacker
+            and you end up on S4 with <strong>1</strong>. The best the attacker
             can actually guarantee in this game is <strong>3</strong>, and it is
             in the other branch entirely.
           </p>
@@ -386,8 +393,8 @@ export const ExampleLab3 = () => {
       body: (
         <>
           <p className="dynamic-question">
-            Start at the bottom, inside N1. What does the{" "}
-            <Att>attacker</Att> do at each of these three nodes?
+            Start at the bottom, inside N1. What does the <Att>attacker</Att> do
+            at each of these three nodes?
           </p>
           <p className="dynamic-response">
             These are the easiest nodes in the tree, because nothing happens
@@ -416,8 +423,8 @@ export const ExampleLab3 = () => {
             S1 is the more valuable server, worth {V.servers.S1} against S2's{" "}
             {V.servers.S2}, and the attacker still doesn't want it. It costs{" "}
             {V.edgeCosts.n1S1} to break into, which eats the whole difference.
-            This is the exploit costs doing real work: the attacker maximizes
-            Sx &minus; SUM(Ex), while the defender only cares about Sx. The two
+            This is the exploit costs doing real work: the attacker maximizes Sx
+            &minus; SUM(Ex), while the defender only cares about Sx. The two
             players are not looking at the same number.
           </div>
         </>
@@ -439,7 +446,10 @@ export const ExampleLab3 = () => {
           <p className="dynamic-response">
             <strong>S3 honeypotted:</strong> forced onto S4 for {V.servers.S4}{" "}
             &minus; ({V.edgeCosts.entryN2} + {V.edgeCosts.n2S4}) ={" "}
-            <strong>2</strong>.
+            <strong>
+              {V.servers.S4 - V.edgeCosts.entryN2 - V.edgeCosts.n2S4}
+            </strong>
+            .
           </p>
           <p className="dynamic-response">
             <strong>S4 honeypotted:</strong> forced onto S3 for {V.servers.S3}{" "}
@@ -447,7 +457,8 @@ export const ExampleLab3 = () => {
             <strong>6</strong>.
           </p>
           <p className="dynamic-response">
-            <strong>No honeypot:</strong> compare S3 at 6 against S4 at 2. The
+            <strong>No honeypot:</strong> compare S3 at 6 against S4 at{" "}
+            {V.servers.S4 - V.edgeCosts.entryN2 - V.edgeCosts.n2S4}. The
             attacker takes <strong>S3</strong>.
           </p>
           <p className="dynamic-response">
@@ -481,10 +492,10 @@ export const ExampleLab3 = () => {
         <>
           <p className="dynamic-response">
             <strong>At N1:</strong> honeypot S1 gives {SUM_S} &minus;{" "}
-            {V.servers.S2} &minus; {V.honeypotCost} ={" "}
-            <strong>21</strong>, honeypot S2 gives <strong>17</strong>, and no
-            honeypot gives {SUM_S} &minus; {V.servers.S2} &minus; 0 ={" "}
-            <strong>24</strong>. The defender <strong>skips the honeypot</strong>.
+            {V.servers.S2} &minus; {V.honeypotCost} = <strong>21</strong>,
+            honeypot S2 gives <strong>17</strong>, and no honeypot gives {SUM_S}{" "}
+            &minus; {V.servers.S2} &minus; 0 = <strong>24</strong>. The defender{" "}
+            <strong>skips the honeypot</strong>.
           </p>
           <p className="dynamic-response">
             Why: the attacker was already heading for S2. Honeypotting S1
@@ -534,8 +545,8 @@ export const ExampleLab3 = () => {
         <>
           <p className="dynamic-response">
             N1 is worth <strong>(3, 24)</strong> and N2 is worth{" "}
-            <strong>(2, 22)</strong>. The attacker compares their own component,
-            3 against 2, and enters <strong>N1</strong>.
+            <strong>(1, 22)</strong>. The attacker compares their own component,
+            3 against 1, and enters <strong>N1</strong>.
           </p>
           <p className="dynamic-response">
             Play runs Entry &rarr; N1, no honeypot, S2, and the game ends at{" "}
@@ -632,54 +643,56 @@ export const ExampleLab3 = () => {
           </p>
           <p className="dynamic-response">
             The defender picks a node to defend, with no option to skip, and
-            every server beneath it gains the honeypot property. The attacker
-            then sees that and picks any one of the four servers.
+            every server beneath it gains the honeypot property. The attacker is
+            then confined to that node, choosing between its two servers only:
+            N1 reaches S1 and S2, N2 reaches S3 and S4.
           </p>
           <p className="dynamic-response">
-            Two decision layers instead of three, eight terminals instead of
-            twelve. The attacker still has the last move, which is the one rule
-            that never changes. Work it the same way: bottom first, then up.
+            Two decision layers instead of three, four terminals instead of
+            twelve. The attacker still has the last move. Solve it the same way,
+            bottom first.
           </p>
         </>
       ),
       reveal: (
         <>
           <p className="dynamic-response">
-            <strong>If N1 is defended:</strong> S1 and S2 are traps at{" "}
-            &minus;14 and &minus;7, so the attacker looks at S3 (6) and S4 (2)
-            and takes <strong>S3</strong>. The defender ends on{" "}
-            <strong>18</strong>.
+            <strong>If N1 is defended:</strong> both servers are honeypots, so
+            the attacker is caught either way and is only choosing how much to
+            waste getting there. S1 costs{" "}
+            {V.edgeCosts.entryN1 + V.edgeCosts.n1S1} to reach and S2 costs{" "}
+            {V.edgeCosts.entryN1 + V.edgeCosts.n1S2}, so they take{" "}
+            <strong>S2</strong> and lose 7 instead of 14.
           </p>
           <p className="dynamic-response">
-            <strong>If N2 is defended:</strong> S3 and S4 are traps, so the
-            attacker compares S1 (0) against S2 (3) and takes{" "}
-            <strong>S2</strong>. The defender ends on <strong>21</strong>.
-          </p>
-          <p className="dynamic-response">
-            The defender compares 18 against 21 and{" "}
-            <strong>defends N2</strong>. The game ends at{" "}
-            <strong>(3, 21)</strong>.
+            <strong>If N2 is defended:</strong> same logic. S3 costs{" "}
+            {V.edgeCosts.entryN2 + V.edgeCosts.n2S3} and S4 costs{" "}
+            {V.edgeCosts.entryN2 + V.edgeCosts.n2S4}, so they take{" "}
+            <strong>S3</strong> and lose 7 instead of 8.
           </p>
           <div className="lab3-note">
-            Look at what the defender just did. They left <strong>N1</strong>{" "}
-            wide open, and N1 holds S1, worth {V.servers.S1}, the most valuable
-            server in the whole network. Guarding your crown jewel is the
-            obvious move and it is the wrong one, because S1 costs{" "}
-            {V.edgeCosts.n1S1} to break into and nets the attacker 0. Nobody was
-            going to take it. The exploit costs decide what is actually at risk,
-            not the server values.
+            Now look at the <Def>defender's</Def> column. It reads{" "}
+            <strong>27</strong> at all four terminals. Because the attacker can
+            only ever reach honeypotted servers, they are always caught, so the
+            damage D is always zero and{" "}
+            <code>Ud = SUM(Sx) &minus; Ch = {SUM_S} &minus; {V.honeypotCost}</code>{" "}
+            no matter what anyone does. The defender is{" "}
+            <strong>completely indifferent</strong> between defending N1 and
+            defending N2, so this game has no single best first move.
           </div>
           <p className="dynamic-response">
-            Notice also that all four honeypot terminals are on screen and none
-            of them is ever chosen. Their numbers are what make the attacker
-            look elsewhere, which is the same reason the off-path rows in the
-            previous step mattered.
+            That is worth sitting with rather than glossing over. A defender who
+            cannot lose also has nothing to decide. The attacker-first ordering
+            is interesting precisely because the attacker can sometimes get
+            through, which is what gives the defender's choice consequences.
           </p>
         </>
       ),
       view: {
         tree: "defenderFirst",
-        solved: ["root", "a:defend-N1", "a:defend-N2"],
+        // Only the two attacker nodes. The root is a genuine tie, so pruning an
+        // edge there would be presenting an arbitrary pick as the answer.
+        solved: ["a:defend-N1", "a:defend-N2"],
       },
     },
   ];
@@ -697,7 +710,9 @@ export const ExampleLab3 = () => {
   // Joined into a string so the memo has a stable, statically-checkable
   // dependency. The array itself is rebuilt on every render, so depending on
   // it directly would defeat the memo.
-  const solvedKey = (isRevealed ? (currentStep.view.solved ?? []) : []).join("|");
+  const solvedKey = (isRevealed ? (currentStep.view.solved ?? []) : []).join(
+    "|",
+  );
   const solvedIds = useMemo(
     () => (solvedKey === "" ? [] : solvedKey.split("|")),
     [solvedKey],
@@ -707,11 +722,12 @@ export const ExampleLab3 = () => {
     [activeTree, activeSolution, solvedIds],
   );
 
-  const goTo = (index: number) => {
-    setStepIndex(index);
-    setIsRevealed(false);
-    resetPlay();
-  };
+  // Navigation only moves the cursor. Revealed answers and the play-it
+  // transcript are both left alone, so stepping back shows what you did rather
+  // than a reset step.
+  const goTo = (index: number) => setStepIndex(index);
+
+  const reveal = () => setRevealedSteps((prev) => new Set(prev).add(stepIndex));
 
   const clickableNodeId =
     currentStep.interactive && !playFinished && playNode.kind === "decision"
@@ -754,7 +770,7 @@ export const ExampleLab3 = () => {
       <div className="lab-panel-divider" />
 
       <div className="lab-panel-dynamic">
-        <div className="dynamic-lab">
+        <div className="dynamic-lab lab3-dynamic">
           {currentStep.definition && (
             <div className="dynamic-definition">
               <CIcon icon={cilLightbulb} className="dynamic-definition-icon" />
@@ -777,7 +793,7 @@ export const ExampleLab3 = () => {
                   backgroundColor: LAB3_ACCENT,
                   borderColor: LAB3_ACCENT,
                 }}
-                onClick={() => setIsRevealed(true)}
+                onClick={reveal}
               >
                 Show Answer
               </CButton>

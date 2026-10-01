@@ -15,43 +15,19 @@ import "../../styles/ExampleLab2.css";
 import { Slider } from "@mui/material";
 
 const LAB2_ACCENT = "#20c997";
-
-// Same helper as usePayoffMatrix.ts's asPercent - kept local for now since
-// ExampleLab2 isn't sharing that hook yet (its matrix is 3x3, not 2x2).
 const asPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
-
-// Floating-point arithmetic on non-integer probabilities (e.g. 0.3 * 38)
-// can land on values like 13.999999999999998 instead of a clean 14 - round
-// to at most 2 decimal places for display, dropping trailing zeros since
-// this returns a number, not a padded string.
 const roundTo2 = (value: number): number => Math.round(value * 100) / 100;
-
 interface LabValues {
   s1: number;
   s2: number;
   ch: number;
   ce: number;
 }
-
-// The values the whole walkthrough runs on by default.
 const PRIMARY_VALUES: LabValues = { s1: 45, s2: 30, ch: 4, ce: 7 };
-
-// Alternate values for the Pure N.E. step. The exploit cost (10) is higher
-// than either server is worth (8 and 6), so attacking is a guaranteed loss
-// and the Attacker stands down, which makes (No Action, No Action) stable.
 const PURE_NE_ALT_VALUES: LabValues = { s1: 8, s2: 6, ch: 3, ce: 10 };
-
-// Alternate values for both Mixed N.E. steps. These sit inside the narrow
-// band Ch <= S1*S2/(S1+S2) <= Ce <= min(S1,S2), which is exactly when both
-// players' three-strategy mixes stay feasible, so the 3x3 calculation
-// actually produces a valid answer instead of collapsing to 2 strategies.
-// (A single value set can't do both jobs: a Pure N.E. needs Ce above both
-// server values, a three-way mix needs Ce below them.)
 const MIXED3_ALT_VALUES: LabValues = { s1: 20, s2: 10, ch: 4, ce: 8 };
 
-// Solves the 2x2 linear system that comes out of an indifference condition
-// once the third probability is substituted in as 1 - x1 - x2. Cramer's
-// rule keeps this correct for any value set rather than any one matrix.
+
 const solveTwoByTwo = (
   a1: number,
   b1: number,
@@ -66,9 +42,6 @@ const solveTwoByTwo = (
   return { x1, x2, x3: 1 - x1 - x2 };
 };
 
-// The Defender mix (p1, p2, p3) that leaves the Attacker indifferent across
-// all three of the Attacker's strategies. The Attacker's No Action payoff
-// is always exactly 0, so both equations are set equal to 0.
 const solveDefenderMix3 = (matrix: Payoff3x3[][]) => {
   const ra = (row: number, col: number) => matrix[row][col].attacker ?? 0;
   const { x1, x2, x3 } = solveTwoByTwo(
@@ -82,9 +55,6 @@ const solveDefenderMix3 = (matrix: Payoff3x3[][]) => {
   return { p1: x1, p2: x2, p3: x3 };
 };
 
-// The Attacker mix (q1, q2, q3) that leaves the Defender indifferent across
-// all three of the Defender's strategies. Here the three Defender payoffs
-// are set equal to each other rather than to 0.
 const solveAttackerMix3 = (matrix: Payoff3x3[][]) => {
   const rd = (row: number, col: number) => matrix[row][col].defender ?? 0;
   const u = rd(0, 2) - rd(1, 2);
@@ -135,9 +105,6 @@ const lab2SliderSx = {
   },
 };
 
-// A second form of the same question, run on a different value set. The
-// matrix on the left recomputes from `values` while the alternate is
-// showing, so the student sees the same procedure land somewhere else.
 interface StepAlternate {
   label: string;
   values: LabValues;
@@ -418,8 +385,7 @@ const generatePages = (): Page[] => [
                 </strong>
                 .
               </>,
-              `Sanity check: against that mix the Defender earns ${indifferentValue} from Defend Server 1, Defend Server 2, and No Action alike. All three being equal is exactly what "indifferent" means, and it's why the Defender is willing to randomize instead of locking onto one strategy.`,
-            ];
+              ];
           },
         },
       },
@@ -492,8 +458,7 @@ const generatePages = (): Page[] => [
                 </strong>
                 .
               </>,
-              `Sanity check: against that mix all three of the Attacker's options are worth exactly ${indifferentValue}, so the Attacker is genuinely indifferent and willing to randomize. Put the two steps together and this game's Mixed Nash Equilibrium has both players using all three strategies, which is what the original values could never produce.`,
-            ];
+              ];
           },
         },
       },
@@ -748,10 +713,6 @@ export const ExampleLab2 = () => {
   const isRevealed = revealedSteps.has(currentStepKey);
   const isLastStepInPage = stepIndex === currentPage.steps.length - 1;
   const isLastPage = pageIndex === pages.length - 1;
-
-  // Only three steps have a second form. While one is showing, the whole
-  // matrix is rebuilt from that step's values; every other step (and this
-  // one, once you navigate away or switch back) uses PRIMARY_VALUES.
   const alternate = currentStep?.alternate;
   const isAlternateActive = showAlternate && alternate !== undefined;
   const activeValues =
@@ -782,8 +743,6 @@ export const ExampleLab2 = () => {
   const isMixedNEPage = currentPage.topic === "Mixed Nash Equilibrium";
   const showAttackerMix = isRevealed && isMixedNEPage && stepIndex === 0;
   const showDefenderMix = isRevealed && isMixedNEPage && stepIndex === 1;
-  // In the alternate form the mix genuinely spans all three strategies, so
-  // the headers switch from (q)/(1-q) to (q1)/(q2)/(q3).
   const showThreeWayMix = isAlternateActive && isMixedNEPage && isRevealed;
   const attackerMix3 = solveAttackerMix3(matrix);
   const defenderMix3 = solveDefenderMix3(matrix);
@@ -837,15 +796,11 @@ export const ExampleLab2 = () => {
     setRevealedSteps((prev) => new Set(prev).add(currentStepKey));
   };
 
-  // Navigating to a different step always drops back to the original
-  // values, so the other problems are never left running on a step's
-  // alternate value set.
+
   useEffect(() => {
     setShowAlternate(false);
   }, [pageIndex, stepIndex, showIntro]);
 
-  // Highlights follow whichever form is currently showing, and clear
-  // themselves the moment anything about that changes.
   useEffect(() => {
     if (showIntro) {
       return;

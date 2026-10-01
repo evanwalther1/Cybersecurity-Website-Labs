@@ -136,7 +136,7 @@ A node records *whose turn it is*. The *edges* are the actions. A terminal recor
 ### Variables
 
 - Four **server values**, `S1` to `S4`.
-- Six **exploit costs**, one per edge (`Entry->N1`, `Entry->N2`, `N1->S1`, `N1->S2`, `N2->S3`, `N2->S4`). The attacker pays the cost of every edge they traverse.
+- Six **exploit costs**, one per edge (`Entry->N1`, `Entry->N2`, `N1->S1`, `N1->S2`, `N2->S3`, `N2->S4`). The attacker pays the cost of every edge they traverse. **The two legs under a given bridge node must differ** (`n1S1 != n1S2`, `n2S3 != n2S4`), or the attacker ties in the defender-first graph, where approach cost is the only thing distinguishing the options.
 - One **honeypot cost** `Ch`, a constant.
 - One **capture penalty** `P`, what getting caught costs the attacker beyond the exploit costs already sunk: burned tooling, attribution, lost access.
 
@@ -166,26 +166,55 @@ It never makes sense for the attacker to be left standing on a non-terminal brid
 
 The "no honeypot" option is what keeps `Ud` interesting. Without it `SUM(Sx)` and `Ch` are both constant, only `D` varies, and the defender degenerates into a one-rule lookup ("always protect the bigger server"). With it, the defender weighs `Ch` against the gap between the two servers, and eating the damage is sometimes correct.
 
-**Defender-first** (two decision layers, 3 decision nodes, 8 terminals):
-1. Defender picks a node to defend. There is no opt-out, the defender must choose, and `Ch` is paid up front whether or not the honeypot is ever entered. Every server beneath the chosen node gains the honeypot property.
-2. The attacker sees the defense and picks **any one of the four servers**.
+**Defender-first** (two decision layers, 3 decision nodes, 4 terminals, all trapped):
+1. Defender picks a node to defend. There is no opt-out, and `Ch` is paid up front whether or not the honeypot is ever entered. Every server beneath the chosen node gains the honeypot property.
+2. The attacker is confined to that node's two servers: N1 reaches S1 and S2, N2 reaches S3 and S4.
 
-The attacker choosing freely is load-bearing. The original description had the attacker placed onto the defended node, which means they are always caught, so `D` is always 0, so `Ud = SUM(Sx) - Ch` is identical down both branches and **the defender has no decision at all** (verified: `tiedNodes` reports a tie at the root). The defender's move only matters because it changes where the attacker can profitably go, so the attacker has to have somewhere else to go.
+**This game has no unique SPNE, and that is a known property of the structure rather than a bug.** Because the attacker can only reach honeypotted servers, they are always caught, so `D` is always 0 and `Ud = SUM(Sx) - Ch` is the same number at all four terminals (27 on `EXAMPLE_VALUES`). The defender is completely indifferent between defending N1 and defending N2. `tiedNodes` reports the root.
 
-The four trapped terminals are strictly dominated and never played, but they are drawn, because their numbers are the reason the attacker declines them. This is the same lesson as the off-path rows in the strategy profile.
+Distinct exploit costs fix the **attacker's** half of this and are required for it: with `n1S1 != n1S2` and `n2S3 != n2S4` the attacker has a real strict comparison inside each branch, choosing the cheaper way to get caught (S2 at -7 over S1 at -14; S3 at -7 over S4 at -8). They cannot fix the defender's half, because **exploit costs appear only in `Ua` and never in `Ud`**. The only things that could are a per-node honeypot cost (`Ch1` vs `Ch2`), a defender payoff that depends on which server the capture happened on, or letting the attacker sometimes get through.
 
-Solved on `EXAMPLE_VALUES`: defending N1 lets the attacker take S3 for `(6, 18)`, defending N2 lets them take S2 for `(3, 21)`, so the defender **defends N2** and the game ends at `(3, 21)`. No ties.
+Example therefore annotates only the two attacker nodes on this tree and leaves the root unpruned, since pruning it would present an arbitrary pick as the answer. The step names the indifference explicitly and uses it as the point: a defender who cannot lose also has nothing to decide, and the attacker-first ordering is interesting precisely because the attacker can sometimes get through.
 
-That outcome carries the defender-side version of the greedy trap: the defender leaves **N1 wide open even though it holds S1, the most valuable server in the network**, because S1 costs 8 to breach and nets the attacker 0. Nobody was going to take it. Exploit costs, not server values, decide what is actually at risk.
+`EXAMPLE_VALUES` note: `n2S4` is 2 rather than 1 specifically so the attacker does not tie inside the N2 branch. That also shifts the attacker-first N2 subgame from `(2, 22)` to `(1, 22)`, which does not change the SPNE.
+
+### Practice: a played match, not a solver
+
+Practice is a **turn-based match against a perfectly rational opponent**, on the attacker-first graph only (defender-first can never be used: it has no unique SPNE). The student picks a side, and the two sides play genuinely different games.
+
+An earlier version had both sides annotate all nine decision nodes. That equalized workload but made the lab a solver and the side choice purely cosmetic, so it was scrapped. Equal difficulty now comes from weighting, not from identical work.
+
+The match is defined as a list of stages in [practiceStages.ts](src/components/Lab3/practiceStages.ts), kept out of the component because the stage list *is* the design of the lab. Later stages are rebuilt from the student's earlier moves, so the opponent genuinely responds to what they did.
+
+**Attacker, 10 graded stages:** 3 recon, read the defender at N1 (10), read them at N2 (10), your opening (15), *defender's reply revealed*, your finish (15), counterfactual on the branch not taken (10), threshold (15), concept (10).
+
+**Defender, 11 graded stages:** 3 recon, read the attacker's opening (20, the hardest single question in the lab), *attacker's move revealed*, predict their finish under each of your three options (5 each), your move (15), *their finish revealed*, counterfactual on the option you passed up (10), threshold (15), concept (10).
+
+Both total exactly 100. Verified by simulating 3,000 perfect playthroughs per role (always 100, every graded stage has a non-empty correct answer) and 3,000 deliberately-wrong playthroughs per role (stage list always terminates, weights still total 100, no "undefined" ever reaches the screen).
+
+Four question types, so the lab cannot be passed by comparing adjacent numbers:
+
+1. **Recon.** The tree starts with every payoff hidden (`visiblePayoffIds` on `GameTreeSVG`). The student computes three terminals from the formulas, one of which is a honeypot capture so they have to apply `Sx = 0`, `D = 0` and `P`. The rest then fill in, because backward induction needs them. Three terminals rather than all twelve, since 24 inputs is data entry.
+2. **Predictions.** Click the edge the opponent will take. Forces lookahead instead of local comparison.
+3. **The threshold question.** "How expensive would a honeypot have to get before it stopped being worth it at this node?" `honeypotThreshold` derives it: `Ch* = Ud(honeypot) - Ud(nothing) + Ch`, the point of exact indifference. This is the only question whose answer is not visible anywhere on screen. Verified across 20,000 games: always present, always an integer, always above `Ch` (range 3 to 9), and independently cross-checked against `D_none - D_shift`.
+4. **One conceptual multiple choice**, with the greedy misconception as the distractor. Options are rotated by a hash of the server values rather than shuffled randomly, so a re-render never moves them under the cursor.
+
+**The grade is never shown before submit.** Finishing the match leads to a review screen that steps back and forth through every committed answer with no marks and no score, then Submit hands the result to `LabLayout` the way Labs 1 and 2 do. Review is read-only on purpose: predictions were made under uncertainty, and letting them be edited after the opponent's moves are revealed would defeat them. The opponent's moves *are* revealed during play, since that is what makes it a match rather than a worksheet.
+
+Restart generates fresh values. Because every generated game satisfies the same constraints, that is a reroll of the numbers and never a reroll into an easier tree.
 
 ### Generation constraints for Practice
 
-A generated value set is only usable if all of these hold. `gameTree.ts` exports the checks:
+`generateGame` is rejection sampling over servers 6 to 15, entry costs 1 to 3, leg costs 1 to 9, `Ch` 2 to 6, `P` 3 to 7. `describeUnusable` is the single gate and returns *why* a candidate failed rather than a bare boolean. A value set is usable only if all of these hold:
 
 - `tiedNodes(...)` is empty. A tie means the SPNE is not unique and the node cannot be graded.
-- `trapPreferredNodes(...)` is empty. The attacker must strictly prefer a real capture to walking into a honeypot. Getting trapped beats a real capture whenever `e_B - e_A > S_B`, so this is reachable with bad values and has to be excluded.
-- The defender's two nodes should not reach the same conclusion, or the tree is pattern-matchable.
-- The attacker's single best terminal should not sit in the branch the attacker actually enters, so the greedy answer is wrong.
+- `trapPreferredNodes(...)` is empty. The attacker must strictly prefer a real capture to walking into a honeypot. Getting trapped beats a real capture whenever `e_B - e_A > S_B`, so this is reachable with bad values.
+- The two legs under each bridge differ (`n1S1 != n1S2`, `n2S3 != n2S4`), or the attacker ties where approach cost is the only thing separating options.
+- The two defender nodes reach different conclusions, or the tree is pattern-matchable. This also guarantees at least one node buys a honeypot, which is what the threshold question needs.
+- The attacker's single best terminal sits in the branch they do **not** enter, so the greedy answer is wrong.
+- The attacker's equilibrium payoff is positive.
+
+Measured over 200,000 candidates: **12.66% acceptance**, so generation is effectively instant. Rejection reasons: tie 26.7%, defender nodes agree 24.0%, greedy answer correct 14.3%, N1 legs equal 11.0%, N2 legs equal 10.0%, attacker cannot profit 1.4%. Across 20,000 *generated* games there were zero problems: always 9 decision nodes and 12 terminals, root choice splits 45/55, and all eight defender-pattern combinations occur.
 
 ### Layout and color
 
