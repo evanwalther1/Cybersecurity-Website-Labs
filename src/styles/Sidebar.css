@@ -2,3 +2,45 @@
   height: 32px;
   width: auto;
 }
+
+/* Each lab nav link carries its own --lab-accent inline (see Sidebar.tsx),
+   set from data/labs.ts. Everything below reads that one value, so a lab's
+   color is never written down in this file. */
+
+/* The accent bar. It is always present and transparent when inactive, so
+   becoming active changes a color rather than adding a border, which would
+   otherwise shift every label 3px sideways. */
+/* CoreUI renders both CNavLink and CNavItem-with-href as an <a class="nav-link">,
+   so this one selector covers every item. */
+.sidebar-nav .nav-link {
+  border-left: 3px solid transparent;
+  transition:
+    border-left-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.sidebar-nav .nav-link.active {
+  border-left-color: var(--lab-accent, var(--cui-primary, #4dabf7));
+  background-color: color-mix(
+    in srgb,
+    var(--lab-accent, var(--cui-primary, #4dabf7)) 16%,
+    transparent
+  );
+}
+
+/* The lab's own color on its icon, matching the home cards and the lab
+   window. currentColor is the fallback so the Home link, which has no accent,
+   keeps the sidebar's default icon color. */
+.sidebar-nav .nav-icon {
+  color: var(--lab-accent, currentColor);
+}
+
+/* Hover gets a hint of the same color, well under the active tint so the two
+   never read as the same state. */
+.sidebar-nav .nav-link:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--lab-accent, var(--cui-primary, #4dabf7)) 8%,
+    transparent
+  );
+}

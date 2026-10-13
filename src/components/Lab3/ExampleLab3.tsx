@@ -5,6 +5,7 @@ import CIcon from "@coreui/icons-react";
 import {
   cilArrowLeft,
   cilArrowRight,
+  cilCheckCircle,
   cilLightbulb,
   cilReload,
 } from "@coreui/icons";
@@ -12,6 +13,7 @@ import "../../styles/LabPanel.css";
 import "../../styles/ExampleLab1.css";
 import "../../styles/ExampleLab3.css";
 import { GameTreeSVG } from "./GameTreeSVG";
+import { NetworkPeek } from "./NetworkPeek";
 import {
   EXAMPLE_VALUES,
   buildAttackerFirstTree,
@@ -27,6 +29,19 @@ import {
 import type { Action, GameNode } from "./gameTree";
 
 export const LAB3_ACCENT = "#c22982";
+
+// What the wrap-up screen lists. Labs 1 and 2 map straight over their page
+// topics, but Lab 3's ten steps are finer grained than that (three of them are
+// successive layers of the same backward induction), so these are written out
+// as the concepts rather than derived from the step titles.
+const CONCEPTS_LEARNED = [
+  "Reading an extensive-form game tree",
+  "Payoffs as a property of the whole path",
+  "Backward induction, one subgame at a time",
+  "Subgame Perfect Nash Equilibrium",
+  "Strategy profiles versus the equilibrium path",
+  "How exploit costs decide what is really at risk",
+];
 
 const V = EXAMPLE_VALUES;
 const SUM_S = totalServerValue(V);
@@ -102,6 +117,7 @@ export const ExampleLab3 = () => {
   );
 
   const [stepIndex, setStepIndex] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
   // Which steps have had their answer revealed, keyed by step index rather than
   // a single boolean. A boolean would reset every time you navigated, so a step
   // you had already solved would show "Show Answer" again on the way back.
@@ -620,7 +636,7 @@ export const ExampleLab3 = () => {
             </tbody>
           </table>
           <div className="lab3-note">
-            The greyed rows are never reached in actual play, and they are still
+            The grayed rows are never reached in actual play, and they are still
             required. Delete the row that says the defender honeypots S3 at N2,
             and there is no longer any reason for the attacker to have chosen N1
             in the first place. The threat of a response that never happens is
@@ -635,7 +651,7 @@ export const ExampleLab3 = () => {
     {
       topic: "The other graph: defender first",
       definition:
-        "Reversing the order of play produces a different game, not a relabelled one. The attacker still moves last, so the tree collapses from three decision layers to two.",
+        "Reversing the order of play produces a different game, not a relabeled one. The attacker still moves last, so the tree collapses from three decision layers to two.",
       body: (
         <>
           <p className="dynamic-question">
@@ -675,7 +691,9 @@ export const ExampleLab3 = () => {
             <strong>27</strong> at all four terminals. Because the attacker can
             only ever reach honeypotted servers, they are always caught, so the
             damage D is always zero and{" "}
-            <code>Ud = SUM(Sx) &minus; Ch = {SUM_S} &minus; {V.honeypotCost}</code>{" "}
+            <code>
+              Ud = SUM(Sx) &minus; Ch = {SUM_S} &minus; {V.honeypotCost}
+            </code>{" "}
             no matter what anyone does. The defender is{" "}
             <strong>completely indifferent</strong> between defending N1 and
             defending N2, so this game has no single best first move.
@@ -699,7 +717,9 @@ export const ExampleLab3 = () => {
 
   const currentStep = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
-  const canAdvance = !isLastStep && (!currentStep.reveal || isRevealed);
+  // The last step's forward arrow does not move the cursor, it ends the
+  // walkthrough, so "can advance" no longer excludes the last step.
+  const canAdvance = !isComplete && (!currentStep.reveal || isRevealed);
 
   const isDefenderFirst = currentStep.view.tree === "defenderFirst";
   const activeTree = isDefenderFirst ? defenderTree : attackerTree;
@@ -727,6 +747,18 @@ export const ExampleLab3 = () => {
   // than a reset step.
   const goTo = (index: number) => setStepIndex(index);
 
+  const goForward = () => {
+    if (isLastStep) setIsComplete(true);
+    else goTo(stepIndex + 1);
+  };
+
+  // Stepping back out of the wrap-up returns to the last step rather than
+  // moving the cursor, which is already sitting there.
+  const goBack = () => {
+    if (isComplete) setIsComplete(false);
+    else goTo(Math.max(0, stepIndex - 1));
+  };
+
   const reveal = () => setRevealedSteps((prev) => new Set(prev).add(stepIndex));
 
   const clickableNodeId =
@@ -738,6 +770,9 @@ export const ExampleLab3 = () => {
     <div className="lab-panel-columns lab3">
       <div className="lab-panel-static">
         <div className="static-lab lab3-static-lab">
+          {/* Always-available look at the physical network, as opposed to the
+              action graph filling the panel. */}
+          <NetworkPeek values={V} />
           <GameTreeSVG
             tree={activeTree}
             solution={activeSolution}
@@ -771,46 +806,77 @@ export const ExampleLab3 = () => {
 
       <div className="lab-panel-dynamic">
         <div className="dynamic-lab lab3-dynamic">
-          {currentStep.definition && (
-            <div className="dynamic-definition">
-              <CIcon icon={cilLightbulb} className="dynamic-definition-icon" />
-              <div>
-                <p>{currentStep.definition}</p>
+          {isComplete ? (
+            <div className="dynamic-finish">
+              <p className="dynamic-finish-title">Walkthrough complete!</p>
+              <p className="dynamic-finish-subtitle">
+                Good job, you've worked through every concept in this lab.
+              </p>
+              <div className="concepts-learned">
+                <p className="concepts-learned-title">Concepts learned</p>
+                <ul className="concepts-learned-list">
+                  {CONCEPTS_LEARNED.map((concept) => (
+                    <li key={concept}>
+                      <CIcon
+                        icon={cilCheckCircle}
+                        className="concepts-learned-icon"
+                      />
+                      <span>{concept}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
+              <p className="dynamic-finish-subtitle">
+                Practice is open to play the game yourself.
+              </p>
             </div>
-          )}
+          ) : (
+            <>
+              {currentStep.definition && (
+                <div className="dynamic-definition">
+                  <CIcon
+                    icon={cilLightbulb}
+                    className="dynamic-definition-icon"
+                  />
+                  <div>
+                    <p>{currentStep.definition}</p>
+                  </div>
+                </div>
+              )}
 
-          <p className="dynamic-topic">{currentStep.topic}</p>
+              <p className="dynamic-topic">{currentStep.topic}</p>
 
-          {currentStep.body}
+              {currentStep.body}
 
-          {isRevealed && currentStep.reveal}
+              {isRevealed && currentStep.reveal}
 
-          {currentStep.reveal && !isRevealed && (
-            <div className="dynamic-controls">
-              <CButton
-                style={{
-                  backgroundColor: LAB3_ACCENT,
-                  borderColor: LAB3_ACCENT,
-                }}
-                onClick={reveal}
-              >
-                Show Answer
-              </CButton>
-            </div>
+              {currentStep.reveal && !isRevealed && (
+                <div className="dynamic-controls">
+                  <CButton
+                    style={{
+                      backgroundColor: LAB3_ACCENT,
+                      borderColor: LAB3_ACCENT,
+                    }}
+                    onClick={reveal}
+                  >
+                    Show Answer
+                  </CButton>
+                </div>
+              )}
+            </>
           )}
 
           <div className="dynamic-nav">
             <CButton
               color="secondary"
-              onClick={() => goTo(Math.max(0, stepIndex - 1))}
-              disabled={stepIndex === 0}
+              onClick={goBack}
+              disabled={stepIndex === 0 && !isComplete}
             >
               <CIcon icon={cilArrowLeft} />
             </CButton>
             <CButton
               color="secondary"
-              onClick={() => goTo(stepIndex + 1)}
+              onClick={goForward}
               disabled={!canAdvance}
             >
               <CIcon icon={cilArrowRight} />

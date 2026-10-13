@@ -1,72 +1,16 @@
 import {
   CCard,
   CCardBody,
-  CCardTitle,
   CCardText,
   CCol,
   CContainer,
   CRow,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
-import {
-  cilBalanceScale,
-  cilPuzzle,
-  cilChartLine,
-  cilGraph,
-  cilShieldAlt,
-  cilLockLocked,
-  cilBug,
-} from "@coreui/icons";
 import "../styles/Home.css";
 import { NavLink } from "react-router-dom";
-import { CNavLink } from "@coreui/react";
-
-interface LabSummary {
-  title: string;
-  description: string;
-  icon: string[];
-}
-
-const labs: LabSummary[] = [
-  {
-    title: "Lab 1: Zero-Sum Game (Normal Form)",
-    description:
-      "Best response, pure Nash Equilibrium, mixed Nash Equilibrium, maxmin, and minmax.",
-    icon: cilBalanceScale,
-  },
-  {
-    title: "Lab 2: Non Zero-Sum Game (Normal Form)",
-    description:
-      "Best response, pure Nash equilibrium, mixed Nash Equilibrium, maxmin, and minmax",
-    icon: cilPuzzle,
-  },
-  {
-    title: "Lab 3: Extensive-Form Game",
-    description:
-      "Sequential games, Game Tree, Sup-Game Perfect Nash Equilibrium, Backward Induction",
-    icon: cilChartLine,
-  },
-  {
-    title: "Lab 4",
-    description: "Concepts for this lab are still being defined.",
-    icon: cilGraph,
-  },
-  {
-    title: "Lab 5",
-    description: "Concepts for this lab are still being defined.",
-    icon: cilShieldAlt,
-  },
-  {
-    title: "Lab 6",
-    description: "Concepts for this lab are still being defined.",
-    icon: cilLockLocked,
-  },
-  {
-    title: "Lab 7",
-    description: "Concepts for this lab are still being defined.",
-    icon: cilBug,
-  },
-];
+import type { CSSProperties } from "react";
+import { LABS } from "../data/labs";
 
 const Home = () => {
   return (
@@ -81,19 +25,45 @@ const Home = () => {
       </div>
 
       <CRow className="justify-content-center g-4 home-lab-grid">
-        {labs.map((lab, index) => (
-          <CCol xs={12} sm={6} lg={4} key={lab.title}>
-            <CNavLink as={NavLink} to={`/lab${index + 1}`}>
-              <CCard className="h-100 text-center lab-card">
-                <CCardBody>
-                  <CIcon icon={lab.icon} size="xxl" className="lab-card-icon" />
-                  <CCardTitle>{lab.title}</CCardTitle>
-                  <CCardText>{lab.description}</CCardText>
-                </CCardBody>
-              </CCard>
-            </CNavLink>
-          </CCol>
-        ))}
+        {LABS.map((lab) => {
+          const isOpen = lab.accent !== undefined;
+
+          const card = (
+            <CCard
+              className={`h-100 text-center lab-card ${
+                isOpen ? "is-open" : "is-soon"
+              }`}
+              // Handed to CSS as a custom property so the color stays defined
+              // only in data/labs.ts.
+              style={{ "--lab-accent": lab.accent } as CSSProperties}
+            >
+              <CCardBody>
+                <CIcon icon={lab.icon} size="xxl" className="lab-card-icon" />
+                <p className="lab-card-title">{lab.title}</p>
+                {lab.subtitle && (
+                  <p className="lab-card-subtitle">{lab.subtitle}</p>
+                )}
+                <CCardText>{lab.description}</CCardText>
+              </CCardBody>
+            </CCard>
+          );
+
+          return (
+            <CCol xs={12} sm={6} lg={4} key={lab.number}>
+              {isOpen ? (
+                <NavLink to={`/lab${lab.number}`} className="lab-card-link">
+                  {card}
+                </NavLink>
+              ) : (
+                // Not a link: App.tsx has no route for these, so wrapping them
+                // would give a clickable card that navigates nowhere.
+                <div className="lab-card-link is-soon" aria-disabled="true">
+                  {card}
+                </div>
+              )}
+            </CCol>
+          );
+        })}
       </CRow>
     </CContainer>
   );

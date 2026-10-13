@@ -43,6 +43,17 @@ export type StageKind =
   /** No input; the opponent's move lands here. */
   | "reveal";
 
+/**
+ * One line of the conversation between the two players. `hypothetical` marks a
+ * line that describes a what-if rather than a move actually made, which the UI
+ * ghosts so the recon round cannot be mistaken for the match itself.
+ */
+export interface Bubble {
+  player: Player;
+  text: string;
+  hypothetical?: boolean;
+}
+
 export interface StageField {
   key: "a" | "b";
   label: string;
@@ -58,10 +69,28 @@ export interface Stage {
   kind: StageKind;
   /** Whose rail lights up. */
   player: Player;
-  /** Short tag, e.g. "Recon" or "Your move". */
+  /**
+   * Short tag, e.g. "Recon 1 of 3". No longer shown on the question bubble
+   * during play (the bubble shows the point value instead), but still needed
+   * to tell stages apart afterwards: three recon questions share the prompt
+   * "What do we each walk away with?", so the review screen and the graded
+   * results rows would otherwise be indistinguishable.
+   */
   heading: string;
+  /**
+   * Narration shown above the question, as bubbles on each player's own side.
+   * The question itself then appears as a bubble on `player`'s side, so the
+   * side a question lands on is the side whose decision it concerns.
+   */
+  setup?: Bubble[];
   prompt: string;
   detail?: string;
+  /**
+   * Render the question bubble full width under the graph instead of in a side
+   * column. Used only by the final multiple choice, whose options are
+   * sentence-length and will not fit a side bubble.
+   */
+  wide?: boolean;
   weight: number;
   /** For "edge": the node whose edges are live. Also the node to highlight. */
   nodeId?: string;
@@ -158,14 +187,32 @@ export const reconTerminals = (
   return [first, second, trapped].filter((t): t is TerminalInfo => !!t);
 };
 
-const describePath = (info: TerminalInfo): string => {
-  const where = `enters ${info.bridge} and reaches ${info.node.server}`;
-  return info.node.trapped
-    ? `The attacker ${where}, where the defender has placed a honeypot.`
-    : info.honeypotOn === null
-      ? `The attacker ${where}. The defender placed no honeypot.`
-      : `The attacker ${where}. The defender honeypotted ${info.honeypotOn}, which the attacker avoided.`;
-};
+// The recon round is a hypothetical, so it is narrated as one, in the players'
+// own voices rather than as a description of them.
+const reconBubbles = (info: TerminalInfo): Bubble[] => [
+  {
+    player: "attacker",
+    text: `I come in through ${info.bridge}.`,
+    hypothetical: true,
+  },
+  {
+    player: "defender",
+    text:
+      info.honeypotOn === null
+        ? "No honeypot from me."
+        : `Honeypot on ${info.honeypotOn}.`,
+    hypothetical: true,
+  },
+  {
+    player: "attacker",
+    text: info.node.trapped
+      ? `I walk into ${info.node.server} anyway.`
+      : info.honeypotOn === null
+        ? `Then I take ${info.node.server}.`
+        : `I go around it and take ${info.node.server}.`,
+    hypothetical: true,
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Stage construction
@@ -202,7 +249,8 @@ export const buildStages = (
       kind: "calc2",
       player: role,
       heading: `Recon ${i + 1} of ${recon.length}`,
-      prompt: describePath(info),
+      setup: reconBubbles(info),
+      prompt: "What do we each walk away with?",
       detail: info.node.trapped
         ? `Nothing is captured, so Sx and D are both 0. The attacker still pays every edge they walked, plus the capture penalty P of ${values.capturePenalty}.`
         : `${info.node.server} is worth ${values.servers[info.node.server]}. The attacker paid ${info.pathCost} in exploit costs to get there.`,
@@ -236,9 +284,15 @@ export const buildStages = (
         kind: "edge",
         player: "defender",
         heading: "Read your opponent",
-        prompt: `You have not moved yet. If you enter ${bridge}, what will the defender do?`,
-        detail:
-          "They see your move before they choose, and they will do whatever is best for them. Click the edge you expect.",
+        setup: [
+          {
+            player: "attacker",
+            text: `Say I come in through ${bridge}.`,
+            hypothetical: true,
+          },
+        ],
+        prompt: "Which response do they pick?",
+        detail: "They see your move first. Click the edge you expect.",
         weight: 10,
         nodeId: node.id,
         visiblePayoffIds: allPayoffs,
@@ -254,9 +308,10 @@ export const buildStages = (
       kind: "edge",
       player: "attacker",
       heading: "Your move",
-      prompt: "Which node do you enter?",
+      setup: [{ player: "defender", text: "I am watching. Pick a way in." }],
+      prompt: "Which way in?",
       detail:
-        "This is the only move that matters much. Choose the branch that pays you most once the defender has reacted to it.",
+        "Choose the branch that pays you most once they have reacted to it.",
       weight: 15,
       nodeId: tree.id,
       visiblePayoffIds: allPayoffs,
@@ -282,9 +337,21 @@ export const buildStages = (
           kind: "reveal",
           player: "defender",
           heading: "The defender responds",
-          prompt: `You entered ${bridgeOfAction(rootAction)}. The defender played: ${reply.label}.`,
-          detail:
-            "That is their best response to what you just did, not a guess. Your own last move is next.",
+          setup: [
+            {
+              player: "attacker",
+              text: `I am coming in through ${bridgeOfAction(rootAction)}.`,
+            },
+            {
+              player: "defender",
+              text:
+                reply.label === "No honeypot"
+                  ? "I am not spending on a honeypot."
+                  : `${reply.label}.`,
+            },
+          ],
+          prompt: "That is their best response, not a guess.",
+          detail: "Your last move is next.",
           weight: 0,
           pathActionId: reply.id,
           visiblePayoffIds: allPayoffs,
@@ -299,6 +366,15 @@ export const buildStages = (
           kind: "edge",
           player: "attacker",
           heading: "Your move",
+          setup: [
+            {
+              player: "defender",
+              text:
+                reply.label === "No honeypot"
+                  ? "Nothing in your way."
+                  : `${reply.label}. Your move.`,
+            },
+          ],
           prompt: "Which server do you take?",
           weight: 15,
           nodeId: leaf.id,
@@ -319,9 +395,16 @@ export const buildStages = (
             kind: "number",
             player: "attacker",
             heading: "The road not taken",
-            prompt: `Suppose you had entered ${bridgeOfAction(other)} instead. What would you have walked away with?`,
+            setup: [
+              {
+                player: "attacker",
+                text: `What if I had gone through ${bridgeOfAction(other)}?`,
+                hypothetical: true,
+              },
+            ],
+            prompt: "What would you have walked away with?",
             detail:
-              "Work it the same way: what does the defender do there, and what are you left with after that.",
+              "Same method: what do they do there, and what is left for you.",
             weight: 10,
             fields: [
               { key: "a", label: "Ua" },
@@ -342,9 +425,15 @@ export const buildStages = (
       kind: "edge",
       player: "attacker",
       heading: "Read your opponent",
-      prompt: "The attacker moves first. Which node will they enter?",
+      setup: [
+        {
+          player: "defender",
+          text: "They move first, and I have to be ready either way.",
+        },
+      ],
+      prompt: "Which way will they come in?",
       detail:
-        "To know this you have to work out what you would do in each branch, and what they would do after that. Click the edge you expect.",
+        "Work out what you would do in each branch, and what they would do after that.",
       weight: 20,
       nodeId: tree.id,
       visiblePayoffIds: allPayoffs,
@@ -365,8 +454,14 @@ export const buildStages = (
         kind: "reveal",
         player: "attacker",
         heading: "The attacker moves",
-        prompt: `The attacker entered ${bridgeOfAction(opening)}.`,
-        detail: "Your move is next. First work out how they will finish.",
+        setup: [
+          {
+            player: "attacker",
+            text: `I am coming in through ${bridgeOfAction(opening)}.`,
+          },
+        ],
+        prompt: "Your move is next.",
+        detail: "First work out how they would finish under each option.",
         weight: 0,
         pathActionId: opening.id,
         visiblePayoffIds: allPayoffs,
@@ -383,10 +478,17 @@ export const buildStages = (
           kind: "edge",
           player: "attacker",
           heading: "Read your opponent",
-          prompt:
-            option.label === "No honeypot"
-              ? "If you spend nothing, which server do they take?"
-              : `If you ${option.label.toLowerCase()}, which server do they take?`,
+          setup: [
+            {
+              player: "defender",
+              text:
+                option.label === "No honeypot"
+                  ? "Say I spend nothing."
+                  : `Say I put a honeypot on ${option.label.replace("Honeypot ", "")}.`,
+              hypothetical: true,
+            },
+          ],
+          prompt: "Which server do they take?",
           weight: 5,
           nodeId: leaf.id,
           visiblePayoffIds: allPayoffs,
@@ -402,11 +504,17 @@ export const buildStages = (
         kind: "edge",
         player: "defender",
         heading: "Your move",
-        prompt: `Honeypot one of ${defNode.actions
+        setup: [
+          {
+            player: "attacker",
+            text: "I am in. What are you going to do about it?",
+          },
+        ],
+        prompt: `Honeypot ${defNode.actions
           .filter((a) => a.label !== "No honeypot")
           .map((a) => a.label.replace("Honeypot ", ""))
           .join(" or ")}, or spend nothing?`,
-        detail: `A honeypot costs you ${values.honeypotCost}. It is only worth buying if it moves the attacker somewhere cheaper by more than that.`,
+        detail: `A honeypot costs ${values.honeypotCost}. Only worth it if it moves them somewhere cheaper by more than that.`,
         weight: 15,
         nodeId: defNode.id,
         visiblePayoffIds: allPayoffs,
@@ -427,8 +535,21 @@ export const buildStages = (
           kind: "reveal",
           player: "attacker",
           heading: "The attacker finishes",
-          prompt: `You played ${chosen.label}. The attacker took ${theirPick?.label.replace("Attack ", "") ?? "?"}.`,
-          detail: "That is their best response to the board you left them.",
+          setup: [
+            {
+              player: "defender",
+              text:
+                chosen.label === "No honeypot"
+                  ? "I am spending nothing."
+                  : `${chosen.label}.`,
+            },
+            {
+              player: "attacker",
+              text: `Then I take ${theirPick?.label.replace("Attack ", "") ?? "?"}.`,
+            },
+          ],
+          prompt: "That is their best response to the board you left.",
+          detail: "Two questions to go.",
           weight: 0,
           pathActionId: theirPick?.id,
           visiblePayoffIds: allPayoffs,
@@ -456,8 +577,15 @@ export const buildStages = (
             kind: "number",
             player: "defender",
             heading: "The road not taken",
-            prompt: `Suppose you had played ${alternative.label.toLowerCase()} instead. What would you have kept?`,
-            detail: `Remember SUM(Sx) is fixed at ${sum}. Only the damage and whether you paid Ch move.`,
+            setup: [
+              {
+                player: "defender",
+                text: `What if I had played ${alternative.label.toLowerCase()}?`,
+                hypothetical: true,
+              },
+            ],
+            prompt: "What would you have kept?",
+            detail: `SUM(Sx) is fixed at ${sum}. Only D and whether you paid Ch move.`,
             weight: 10,
             fields: [
               { key: "a", label: "Ud" },
@@ -482,9 +610,15 @@ export const buildStages = (
       kind: "number",
       player: "defender",
       heading: "Where the honeypot stops paying",
-      prompt: `At ${bridge} the defender buys a honeypot, and at a cost of ${values.honeypotCost} it is worth it. How expensive would a honeypot have to get before it stopped being worth it there?`,
+      setup: [
+        {
+          player: "defender",
+          text: `At ${bridge} the honeypot is worth its ${values.honeypotCost}. But only just.`,
+        },
+      ],
+      prompt: "How expensive before it stops being worth it?",
       detail:
-        "Find the cost at which the defender would be exactly indifferent between buying it and spending nothing.",
+        "The cost at which buying it and spending nothing pay exactly the same.",
       weight: 15,
       fields: [
         { key: "a", label: "Ch" },
@@ -545,6 +679,7 @@ const conceptStage = (
     kind: "choice",
     player: "attacker",
     heading: "Last question",
+    wide: true,
     prompt: `${prize.node.server} is the biggest payoff available to the attacker anywhere on this tree, worth ${prize.node.payoff.attacker}, and the attacker never takes it. Why not?`,
     weight: 10,
     options: rotated,
@@ -555,4 +690,33 @@ const conceptStage = (
     describe: (input) =>
       rotated.find((o) => o.id === input)?.label ?? "(no answer)",
   };
+};
+
+/**
+ * How many graded stages the match will have in total.
+ *
+ * `buildStages` is lazy: the stages after a move only exist once that move is
+ * committed, because their content depends on it. So the length of the list
+ * grows during play, and reading it straight off made the progress counter
+ * climb from "8" to "10" mid-match.
+ *
+ * The stage COUNT, though, does not depend on which action was chosen, only
+ * that one was. So this walks a throwaway playthrough using the equilibrium
+ * answers purely to count the result. Nothing from it reaches the UI except
+ * the number.
+ */
+export const totalScorableStages = (
+  game: GeneratedGame,
+  role: Role,
+): number => {
+  const answers = new Map<string, string>();
+  for (let i = 0; i < 64; i += 1) {
+    const stages = buildStages(game, role, answers);
+    if (i >= stages.length) {
+      return stages.filter((stage) => stage.weight > 0).length;
+    }
+    answers.set(stages[i].id, stages[i].answer);
+  }
+  // Unreachable for any real game; a stage list this long means a builder bug.
+  throw new Error("Lab 3 stage list did not terminate.");
 };

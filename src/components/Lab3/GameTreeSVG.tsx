@@ -233,7 +233,7 @@ export const GameTreeSVG = ({
 
         // The drawn edge stops short at both ends so it does not run under the
         // parent circle or the child's box. The hit line is measured along
-        // THESE endpoints, not parent-centre to child-centre, so the click band
+        // THESE endpoints, not parent-center to child-center, so the click band
         // sits exactly on the line the student can see.
         const x1 = parent.x;
         const y1 = parent.y + NODE_R;

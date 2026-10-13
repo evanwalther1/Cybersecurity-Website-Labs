@@ -10,9 +10,9 @@ const labProps = {
   title: "Lab 3: Extensive-Form Game",
   objectives: [
     "Understand sequential games",
-    "Understnad how to traverse a game tree to fin payoffs",
+    "Understand traversing a game tree to find payoffs",
     "Learn how to find the SPNE (Sub-game Perfect Nash Equilibrium",
-    "Use backward induction",
+    "Use backward induction to make rational decisions",
   ],
   points: 100,
   icon: cilPuzzle,

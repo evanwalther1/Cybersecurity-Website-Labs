@@ -1,79 +1,126 @@
 /* Practice Lab 3.
  *
- * The guiding rule here: the game tree is the only thing on screen allowed to
- * have visual weight. Everything else is flat text on the page background,
- * separated by single rules rather than wrapped in cards, so the eye lands on
- * the diagram instead of on the loudest box. The one exception is the question
- * card, which has to be findable because it changes every turn.
+ * The game tree is the only thing on screen allowed to have visual weight.
+ * There is no question card any more: the questions are bubbles in the two side
+ * columns, spoken by whichever player the question concerns, so the layout and
+ * the game are the same thing. Everything else is flat text.
  *
  * Player colors and the tree itself come from ExampleLab3.css.
  */
 
 .lab3-match {
-  display: grid;
-  /* The tree is 835 units wide against 600 tall and it is the point of the
-     screen, so the rails get only what they need for a formula and a short
-     list of values. */
-  grid-template-columns: 13.5rem 1fr 13.5rem;
-  gap: 0;
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-}
-
-/* ----------------------------------------------------------------- rails --- */
-
-/* No card: no background, no radius, no shadow. Just a rule on the inner edge,
-   the same device .lab-panel-divider uses, so the three sides read as regions
-   of one board rather than as three panels. */
-.lab3-rail {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  min-width: 0;
-  padding: 0.25rem 1.1rem 0.25rem 0;
+  flex: 1;
+  min-height: 0;
+  /* height:100% as well as flex:1, matching .lab-panel-columns. The tab panel
+     is a row-direction flex container, so without it this collapses to content
+     height. */
+  height: 100%;
+  width: 100%;
+  gap: 0.5rem;
 }
 
-.lab3-rail.is-attacker {
+/* ----------------------------------------------------------------- board --- */
+
+/* One grid rather than three flex columns, and this is load-bearing.
+ *
+ * A conversation needs a single top-to-bottom reading order, but left and right
+ * bubbles live in different columns. If the sides were separate flex columns,
+ * two consecutive bubbles would each start at the top of their own column and
+ * the order would be lost. As one grid, every bubble takes its own implicit row
+ * in column 1 or 3, so document order reads down the page across both sides,
+ * and the graph spans the lot with `grid-row: 1 / -1`.
+ */
+.lab3-board {
+  display: grid;
+  grid-template-columns: 15.5rem minmax(0, 1fr) 15.5rem;
+  /* The rows MUST be declared explicitly, and this is the bug that broke the
+     first version of this layout.
+     `grid-row: 1 / -1` on the graph resolves -1 against the EXPLICIT grid, not
+     the implicit rows that auto-placed bubbles create. With no
+     grid-template-rows at all, the explicit grid has zero rows, -1 resolved to
+     line 1, and `1 / -1` collapsed to a single content-sized row, so the graph
+     rendered tiny no matter how much space was available.
+     Row 1 holds the two column headers. Rows 2 to 6 take one bubble each (the
+     longest exchange is 3 narration bubbles plus the question). The trailing
+     1fr soaks up everything left over, which is what actually gives the graph
+     its height once it spans 1 / -1. */
+  grid-template-rows: auto repeat(5, min-content) 1fr;
+  gap: 0.4rem 1.1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.lab3-board-graph {
+  /* Containing block for the absolutely positioned network peek. */
+  position: relative;
+  grid-column: 2;
+  grid-row: 1 / -1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  /* These two rules are what separate the three sides. The board is one grid,
+     so the "sides" are regions rather than boxes, and a full-height rule down
+     each edge of the center column is what makes them read as sides without
+     wrapping anything in a card. */
+  padding: 0 1.1rem;
+  border-left: 1px solid var(--cui-border-color, #dcdfe4);
   border-right: 1px solid var(--cui-border-color, #dcdfe4);
 }
 
-.lab3-rail.is-defender {
-  padding: 0.25rem 0 0.25rem 1.1rem;
-  border-left: 1px solid var(--cui-border-color, #dcdfe4);
-}
+/* --------------------------------------------------------- column heads --- */
 
-.lab3-rail-head {
+.lab3-col-head {
+  grid-row: 1;
   display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
+  align-items: center;
+  gap: 0.45rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--cui-border-color, #dcdfe4);
 }
 
-/* Whose turn it is shows up as the name brightening and a dot appearing, not as
-   a glowing panel. Same information, far less ink. */
-.lab3-rail-name {
-  position: relative;
-  font-size: 0.8rem;
+.lab3-col-head.is-attacker {
+  grid-column: 1;
+}
+
+.lab3-col-head.is-defender {
+  grid-column: 3;
+  justify-content: flex-end;
+}
+
+.lab3-col-name {
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lab3-col-head.is-attacker .lab3-col-name {
+  color: var(--lab3-attacker);
+}
+
+.lab3-col-head.is-defender .lab3-col-name {
+  color: var(--lab3-defender);
+}
+
+.lab3-col-you {
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.45;
-  transition: opacity 0.25s ease;
+  letter-spacing: 0.08em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--lab3-accent) 18%, transparent);
+  color: var(--lab3-accent);
 }
 
-.lab3-rail.is-lit .lab3-rail-name {
-  opacity: 1;
-}
-
-.lab3-rail.is-lit .lab3-rail-name::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: -0.65rem;
+/* The side whose turn it is gets a dot, same device as before. */
+.lab3-col-turn {
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 50%;
-  transform: translateY(-50%);
   background: currentColor;
   animation: lab3-turn-dot 1.1s ease-in-out infinite;
 }
@@ -84,113 +131,9 @@
   }
 }
 
-.lab3-rail.is-attacker .lab3-rail-name {
-  color: var(--lab3-attacker);
-}
-
-.lab3-rail.is-defender .lab3-rail-name {
-  color: var(--lab3-defender);
-}
-
-.lab3-rail-you {
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--lab3-accent);
-}
-
-.lab3-rail code {
-  display: block;
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 0.72rem;
-  line-height: 1.4;
-  color: var(--cui-body-color);
-}
-
-.lab3-rail dl {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.15rem 0.9rem;
-  margin: 0;
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 0.78rem;
-}
-
-.lab3-rail dl div {
-  display: flex;
-  gap: 0.3rem;
-}
-
-.lab3-rail dt {
-  font-weight: 700;
-  color: var(--lab3-accent);
-}
-
-.lab3-rail dd {
-  margin: 0;
-}
-
-.lab3-rail p {
-  margin: 0;
-  font-size: 0.7rem;
-  line-height: 1.4;
-  color: var(--cui-secondary-color, #6c757d);
-}
-
-/* ---------------------------------------------------------------- centre --- */
-
-.lab3-match-center {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  min-width: 0;
-  min-height: 0;
-  padding: 0 1.1rem;
-}
-
-.lab3-match-graph {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-}
-
-.lab3-match-graph .lab3-tree {
+.lab3-board-graph .lab3-tree {
   width: 100%;
   height: 100%;
-}
-
-/* The only card on the board. It changes every turn, so it has to be the one
-   thing that announces itself. */
-.lab3-card {
-  padding: 0.7rem 0.95rem;
-  border: 1px solid var(--cui-border-color, #dcdfe4);
-  border-radius: 0.6rem;
-  background: var(--cui-tertiary-bg);
-}
-
-.lab3-ask {
-  border-left-width: 4px;
-}
-
-.lab3-ask.is-attacker {
-  border-left-color: var(--lab3-attacker);
-}
-
-.lab3-ask.is-defender {
-  border-left-color: var(--lab3-defender);
-}
-
-.lab3-ask-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.3rem;
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--cui-secondary-color, #6c757d);
 }
 
 .lab3-count {
@@ -203,109 +146,297 @@
   letter-spacing: 0.06em;
 }
 
-.lab3-ask.is-attacker .lab3-ask-heading {
+/* What the question is worth, right-aligned in its byline. Pinned with
+   position rather than floated so it cannot be pushed onto a second line in a
+   narrow column. */
+.lab3-bubble-points {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.65rem;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--lab3-accent);
+}
+
+/* --------------------------------------------------------------- bubbles --- */
+
+.lab3-bubble {
+  position: relative;
+  grid-column: 1;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.7rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.lab3-bubble.is-attacker {
+  grid-column: 1;
+  /* Tail on the right edge, pointing at the graph. */
+  border-bottom-right-radius: 0.15rem;
+  background: color-mix(in srgb, var(--lab3-attacker) 20%, var(--cui-body-bg));
+  border-color: var(--lab3-attacker);
+}
+
+.lab3-bubble.is-defender {
+  grid-column: 3;
+  border-bottom-left-radius: 0.15rem;
+  background: color-mix(in srgb, var(--lab3-defender) 20%, var(--cui-body-bg));
+  border-color: var(--lab3-defender);
+}
+
+/* A what-if rather than a move actually made. Still a solid fill, because
+   faint bubbles made the back-and-forth hard to follow; the dashed outline and
+   the italics carry the distinction on their own. */
+.lab3-bubble.is-hypothetical {
+  border-style: dashed;
+  font-style: italic;
+}
+
+.lab3-bubble-who {
+  display: block;
+  padding-right: 3rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.1rem;
+}
+
+.lab3-bubble.is-attacker .lab3-bubble-who {
   color: var(--lab3-attacker);
 }
 
-.lab3-ask.is-defender .lab3-ask-heading {
+.lab3-bubble.is-defender .lab3-bubble-who {
   color: var(--lab3-defender);
 }
 
-.lab3-ask-who {
-  margin-left: auto;
+/* The one bubble that is a question rather than a line of dialogue. Solid
+   background and a heavier edge, because it is the thing you have to act on. */
+/* The one bubble that is a question rather than dialogue. Same hue as its
+   side, but a touch stronger and with a heavier edge, so it reads as the thing
+   you have to act on. */
+.lab3-bubble.is-ask {
+  border-style: solid;
+  border-width: 2px;
+  font-style: normal;
 }
 
-.lab3-ask-prompt {
+.lab3-bubble.is-ask.is-attacker {
+  background: color-mix(in srgb, var(--lab3-attacker) 28%, var(--cui-body-bg));
+  border-left-width: 4px;
+}
+
+.lab3-bubble.is-ask.is-defender {
+  background: color-mix(in srgb, var(--lab3-defender) 28%, var(--cui-body-bg));
+  border-right-width: 4px;
+}
+
+.lab3-bubble-ask {
   margin: 0;
-  font-size: 1.02rem;
+  font-size: 0.92rem;
   font-weight: 700;
   line-height: 1.3;
 }
 
-.lab3-ask-detail {
+.lab3-bubble-detail {
   margin: 0.2rem 0 0;
-  font-size: 0.8rem;
-  line-height: 1.4;
+  font-size: 0.74rem;
+  line-height: 1.35;
   color: var(--cui-secondary-color, #6c757d);
 }
 
-.lab3-ask-controls {
+.lab3-bubble-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.55rem;
+  gap: 0.4rem 0.5rem;
+  margin-top: 0.45rem;
 }
 
-.lab3-ask-controls label {
+.lab3-bubble-controls label {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--cui-secondary-color, #6c757d);
 }
 
-.lab3-ask-controls input {
-  width: 5rem;
-  padding: 0.3rem 0.45rem;
+.lab3-bubble-controls input {
+  width: 3.9rem;
+  padding: 0.22rem 0.4rem;
   font-family: ui-monospace, Consolas, monospace;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--cui-body-color);
   background: var(--cui-body-bg);
   border: 1px solid var(--cui-border-color, #dcdfe4);
   border-radius: 0.3rem;
 }
 
-.lab3-ask-controls input:focus {
+.lab3-bubble-controls input:focus {
   outline: none;
   border-color: var(--lab3-accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--lab3-accent) 25%, transparent);
 }
 
-.lab3-ask-hint {
-  font-size: 0.78rem;
+.lab3-bubble-hint {
+  font-size: 0.72rem;
   color: var(--cui-secondary-color, #6c757d);
 }
 
-.lab3-ask-controls .btn {
+.lab3-bubble-controls .btn {
   margin-left: auto;
 }
 
-/* Multiple choice, used once at the end. */
-.lab3-ask-options {
+/* ---------------------------------------------------------------- ledger --- */
+
+/* The two formulas belong to their players and sit on their sides. Every
+   variable is shared by both, so the values sit in the middle belonging to
+   neither. Sized to fill the strip rather than float in the top half of it. */
+.lab3-ledger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  min-height: 3.1rem;
+  padding: 0.3rem 0.25rem 0;
+  border-top: 1px solid var(--cui-border-color, #dcdfe4);
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.lab3-ledger-formula {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.lab3-ledger-formula.is-attacker {
+  color: var(--lab3-attacker);
+}
+
+.lab3-ledger-formula.is-defender {
+  color: var(--lab3-defender);
+}
+
+.lab3-ledger-values {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem 1.4rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.lab3-ledger-values div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.lab3-ledger-values dt {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab3-ledger-values dd {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--cui-body-color);
+}
+
+/* ---------------------------------------------------------------- finale --- */
+
+/* The last question covers the board. It is a finale, not another turn, so it
+   is deliberately not wired into the three-column layout at all: no graph, no
+   bubbles, nothing to read off. position:fixed is safe here because no ancestor
+   is transformed, and .lab-window already owns the stacking context so a small
+   z-index is enough to sit above the board. */
+.lab3-finale {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem;
+  background: color-mix(in srgb, var(--cui-body-bg) 88%, #000);
+}
+
+.lab3-finale-panel {
+  width: min(48rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 2rem 2.25rem;
+  border: 1px solid color-mix(in srgb, var(--lab3-accent) 45%, transparent);
+  border-top: 4px solid var(--lab3-accent);
+  border-radius: 0.8rem;
+  background: var(--cui-body-bg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.lab3-finale-tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--lab3-accent);
+}
+
+.lab3-finale-q {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.lab3-finale-options {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin: 0.55rem 0 0;
+  gap: 0.5rem;
+  margin: 0;
   padding: 0;
 }
 
-.lab3-ask-options button {
+.lab3-finale-options button {
   width: 100%;
-  padding: 0.45rem 0.6rem;
+  padding: 0.8rem 1rem;
   text-align: left;
-  font-size: 0.82rem;
-  line-height: 1.35;
+  font-size: 0.95rem;
+  line-height: 1.45;
   cursor: pointer;
   color: var(--cui-body-color);
-  background: var(--cui-body-bg);
-  border: 1px solid var(--cui-border-color, #dcdfe4);
-  border-radius: 0.35rem;
+  background: var(--cui-tertiary-bg);
+  border: 2px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.5rem;
   transition:
     border-color 0.15s ease,
     background 0.15s ease;
 }
 
-.lab3-ask-options button:hover {
-  border-color: color-mix(in srgb, var(--lab3-accent) 50%, transparent);
+.lab3-finale-options button:hover {
+  border-color: color-mix(in srgb, var(--lab3-accent) 55%, transparent);
 }
 
-.lab3-ask-options button.is-picked {
+.lab3-finale-options button.is-picked {
   border-color: var(--lab3-accent);
-  background: color-mix(in srgb, var(--lab3-accent) 12%, var(--cui-body-bg));
+  background: color-mix(in srgb, var(--lab3-accent) 14%, var(--cui-body-bg));
+}
+
+.lab3-finale-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.25rem;
 }
 
 /* ------------------------------------------------------------ side select -- */
@@ -428,6 +559,13 @@
   color: var(--cui-secondary-color, #6c757d);
 }
 
+.lab3-card {
+  padding: 0.7rem 0.95rem;
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.6rem;
+  background: var(--cui-tertiary-bg);
+}
+
 .lab3-review-card {
   width: min(42rem, 100%);
   text-align: left;
@@ -466,4 +604,16 @@
   display: flex;
   justify-content: center;
   gap: 0.75rem;
+}
+
+/* The stage tag on the review card. Not shown during play, where the bubble
+   carries the point value instead, but needed here because several stages
+   share a prompt. */
+.lab3-review-tag {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--lab3-accent);
 }
