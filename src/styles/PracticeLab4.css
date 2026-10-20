@@ -1,0 +1,429 @@
+/* Practice Lab 4.
+ *
+ * A single scrolling transcript across three columns: attacker left, network
+ * in the middle, defender right. Unlike Lab 3's Practice, which showed one
+ * exchange at a time, this keeps the whole history so the student can scroll
+ * back through a derivation that builds on itself.
+ *
+ * Player colors and the network itself come from ExampleLab4.css.
+ */
+
+.lab4-practice {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+
+/* ------------------------------------------------------------------ head -- */
+
+.lab4-practice-head {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 1.5fr) 1fr;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 0 0.45rem;
+  border-bottom: 1px solid var(--cui-border-color, #dcdfe4);
+}
+
+.lab4-practice-side {
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lab4-practice-side.is-attacker {
+  grid-column: 1;
+  color: var(--lab4-attacker);
+}
+
+.lab4-practice-side.is-defender {
+  grid-column: 3;
+  text-align: right;
+  color: var(--lab4-defender);
+}
+
+.lab4-practice-count {
+  grid-column: 2;
+  justify-self: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--lab4-accent) 16%, transparent);
+  color: var(--lab4-accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/* ----------------------------------------------------------------- board -- */
+
+/* The scroll container and the grid are the same element, so the sticky graph
+   has the scroller as its containing block. */
+.lab4-board {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 1.5fr) 1fr;
+  align-content: start;
+  gap: 0.5rem 1.1rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.6rem 0.3rem 1.5rem;
+}
+
+/* The graph occupies the middle column for the full height of the transcript.
+   The row span is set inline from the entry count, because grid-row: 1 / -1
+   only reaches the end of the EXPLICIT grid and every row here is implicit. */
+.lab4-board-graph {
+  grid-column: 2;
+  min-width: 0;
+  /* Full-height rules down both edges of the middle column. Because the graph
+     spans every transcript row, a border on it separates the three regions
+     without wrapping anything in a card. */
+  padding: 0 1.1rem;
+  border-left: 1px solid var(--cui-border-color, #dcdfe4);
+  border-right: 1px solid var(--cui-border-color, #dcdfe4);
+}
+
+/* Sticky rather than fixed, so it stays in view while the conversation scrolls
+   past without being torn out of the layout. */
+.lab4-board-sticky {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* Reference data under the diagram: values and constants on one line, the two
+   formulas below them. */
+.lab4-board-ledger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--cui-border-color, #dcdfe4);
+}
+
+/* The panel floats over the diagram in the Example. Here it is a flat row in
+   the flow instead, so it has to drop the absolute positioning. */
+.lab4-board-sticky .lab4-variables {
+  position: static;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.2rem 1rem;
+  font-size: 0.9rem;
+}
+
+/* The divider's spacing is written for a vertical stack. Laid out as a row it
+   pushed Ch down out of line with everything else, so swap the top rule for a
+   left one. */
+.lab4-board-sticky .lab4-variables-row.is-divider {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  padding-left: 1rem;
+  border-left: 1px solid var(--cui-border-color, #dcdfe4);
+}
+
+.lab4-board-formulas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.2rem 1.4rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--cui-body-color);
+}
+
+/* --------------------------------------------------------------- bubbles -- */
+
+.lab4-bubble {
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.7rem;
+  border: 1px solid transparent;
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.lab4-bubble.is-attacker {
+  grid-column: 1;
+  border-bottom-right-radius: 0.15rem;
+  background: color-mix(in srgb, var(--lab4-attacker) 18%, var(--cui-body-bg));
+  border-color: color-mix(in srgb, var(--lab4-attacker) 55%, transparent);
+}
+
+.lab4-bubble.is-defender {
+  grid-column: 3;
+  border-bottom-left-radius: 0.15rem;
+  background: color-mix(in srgb, var(--lab4-defender) 18%, var(--cui-body-bg));
+  border-color: color-mix(in srgb, var(--lab4-defender) 55%, transparent);
+}
+
+/* Answered exchanges fade back so the live one reads as the current turn
+   without the history disappearing. */
+.lab4-bubble.is-answer:not(.is-live) {
+  opacity: 0.75;
+}
+
+.lab4-bubble.is-live {
+  border-width: 2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lab4-accent) 22%, transparent);
+}
+
+.lab4-bubble-who {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.1rem;
+}
+
+.lab4-bubble.is-attacker .lab4-bubble-who {
+  color: var(--lab4-attacker);
+}
+
+.lab4-bubble.is-defender .lab4-bubble-who {
+  color: var(--lab4-defender);
+}
+
+.lab4-bubble-pts {
+  float: right;
+  font-style: normal;
+  color: var(--lab4-accent);
+}
+
+.lab4-bubble-prompt {
+  margin: 0;
+  font-weight: 600;
+}
+
+.lab4-bubble-detail {
+  margin: 0.25rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab4-bubble-given {
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+}
+
+/* --------------------------------------------------------------- answers -- */
+
+.lab4-bubble-options {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.2rem 0 0;
+  padding: 0;
+}
+
+.lab4-bubble-options button {
+  width: 100%;
+  padding: 0.38rem 0.55rem;
+  text-align: left;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  cursor: pointer;
+  color: var(--cui-body-color);
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.35rem;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.lab4-bubble-options button:hover {
+  border-color: color-mix(in srgb, var(--lab4-accent) 55%, transparent);
+}
+
+.lab4-bubble-options button.is-picked {
+  border-color: var(--lab4-accent);
+  background: color-mix(in srgb, var(--lab4-accent) 14%, var(--cui-body-bg));
+}
+
+.lab4-bubble-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  margin-top: 0.3rem;
+}
+
+.lab4-bubble-inputs label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+/* The suffix sits inside the field's border so "%" reads as part of the box
+   rather than as loose punctuation next to it. */
+.lab4-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.3rem;
+}
+
+.lab4-input-wrap:focus-within {
+  border-color: var(--lab4-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lab4-accent) 25%, transparent);
+}
+
+.lab4-input-wrap input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.28rem 0.45rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.88rem;
+  color: var(--cui-body-color);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.lab4-input-wrap i {
+  padding-right: 0.45rem;
+  font-style: normal;
+  font-size: 0.8rem;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+/* An equation needs a wide field; the percentage triple wants three narrow
+   ones side by side. */
+.lab4-bubble-inputs label:only-child .lab4-input-wrap {
+  min-width: 11rem;
+}
+
+.lab4-bubble-inputs label:not(:only-child) .lab4-input-wrap {
+  width: 5.2rem;
+}
+
+.lab4-bubble-commit {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.4rem;
+}
+
+/* ----------------------------------------------------------------- intro -- */
+
+.lab4-practice-intro {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.lab4-practice-intro h3 {
+  margin: 0;
+  font-weight: 800;
+}
+
+.lab4-practice-intro p {
+  max-width: 34rem;
+  margin: 0;
+}
+
+.lab4-practice-intro-note {
+  font-size: 0.85rem;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+/* ---------------------------------------------------------------- review -- */
+
+.lab4-practice-review {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.lab4-review-head h4 {
+  margin: 0 0 0.3rem;
+  font-weight: 800;
+}
+
+.lab4-review-head p {
+  max-width: 34rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab4-review-card {
+  width: min(42rem, 100%);
+  text-align: left;
+  padding: 0.8rem 1rem;
+  background: var(--cui-tertiary-bg);
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-left: 4px solid var(--lab4-accent);
+  border-radius: 0.6rem;
+}
+
+.lab4-review-count {
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--lab4-accent);
+}
+
+.lab4-review-q {
+  margin: 0.35rem 0 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.lab4-review-a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0;
+}
+
+.lab4-review-a span {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab4-review-a strong {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.95rem;
+}
+
+.lab4-review-nav,
+.lab4-review-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}

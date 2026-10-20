@@ -12,7 +12,7 @@ import { Slider } from "@mui/material";
 import "../../styles/LabPanel.css";
 import "../../styles/ExampleLab1.css";
 import "../../styles/ExampleLab4.css";
-import { TargetNetwork } from "./TargetNetwork";
+import { ServerNetwork } from "./ServerNetwork";
 import {
   EXAMPLE_GAME,
   asPercent,
@@ -34,13 +34,13 @@ const LAB4_ACCENT = "#f08c00";
 
 const G = EXAMPLE_GAME;
 const SV = totalValue(G);
-const T = G.targets;
+const T = G.servers;
 
 /** The three commitments the walkthrough compares, in the order it meets them. */
 const PURE_T1: Coverage = [1, 0, 0];
 const DEMO: Coverage = [0.5, 0.3, 0.2];
 // A non-null assertion here would be a landmine: equalizingCoverage returns
-// null whenever a target's equalizing share comes out negative, which happens
+// null whenever a server's equalizing share comes out negative, which happens
 // for roughly half of all games. It is feasible for this one (verified), but
 // fail loudly rather than silently if the numbers are ever retuned.
 const EQ = (() => {
@@ -86,9 +86,9 @@ const BEST_PURE = (() => {
 // count is asserted below rather than left to drift.
 const ROADMAP_BLURBS = [
   "Read the network, and work out what each side gains or loses.",
-  "Commit to protecting one target, and see what that tells the attacker.",
+  "Commit to protecting one server, and see what that tells the attacker.",
   "Find out why no certain commitment can ever work.",
-  "Set up the mixed strategy, and derive what the attacker expects at each target.",
+  "Set up the mixed strategy, and derive what the attacker expects at each server.",
   "Try a mix, compute the attacker's best response, and see what you get.",
   "Tune the mix until the attacker has no favorite left.",
   "Compute your own expected utility, and compare tuned against untuned.",
@@ -139,15 +139,15 @@ const PayoffTable = ({
     <table className="lab4-table">
       <thead>
         <tr>
-          <th>Target</th>
+          <th>Server</th>
           <th>{who === "attacker" ? "EUa" : "EUd"}</th>
           <th>Value</th>
         </tr>
       </thead>
       <tbody>
-        {T.map((target, i) => (
-          <tr key={target.id} className={winners.includes(i) ? "is-best" : ""}>
-            <td>{target.id}</td>
+        {T.map((server, i) => (
+          <tr key={server.id} className={winners.includes(i) ? "is-best" : ""}>
+            <td>{server.id}</td>
             <td>
               <code>{who === "attacker" ? aLineText(i) : dLineText(i)}</code>
             </td>
@@ -189,7 +189,7 @@ export const ExampleLab4 = () => {
     {
       topic: "The network and the payoffs",
       definition: [
-        "Lab 4 is a Stackelberg security game. There is one entry point and three targets. Each target is worth something if the attacker takes it, and costs the attacker something to reach whether or not the attack lands.",
+        "Lab 4 is a Stackelberg security game. There is one entry point and three servers. Each server is worth something if the attacker takes it, and costs the attacker something to reach whether or not the attack lands.",
         `The defender has exactly one honeypot. Deploying it costs Ch = ${G.honeypotCost}, and that cost is paid up front, before anyone moves.`,
       ],
       steps: [
@@ -212,11 +212,6 @@ export const ExampleLab4 = () => {
                 Ud = SUM(V) &minus; D2 &minus; Ch = {SV} &minus; {T[1].value}{" "}
                 &minus; {G.honeypotCost} = {ud([0, 0, 0], 1)}
               </Formula>
-              <Note>
-                Notice the defender still pays Ch even though the honeypot never
-                saw the attacker. It was deployed before anyone moved, so it is
-                a sunk cost by the time the attack happens.
-              </Note>
             </>
           ),
         },
@@ -240,10 +235,11 @@ export const ExampleLab4 = () => {
                 {ud([0, 1, 0], 1)}
               </Formula>
               <Note>
-                This is the hinge the whole lab turns on. Protection zeroes the
-                damage, but the attacker <em>still pays the exploit cost</em>. A
-                failed attack is not free, and that is what lets coverage make a
-                target unattractive without ever having to be certain.
+                This is an important concept to understand. The honeypot absorbs
+                the damage, but the attacker{" "}
+                <em>still pays the exploit cost</em>. A failed attack is not
+                free, and that is what lets coverage make a server unattractive
+                without ever having to be certain.
               </Note>
             </>
           ),
@@ -287,7 +283,7 @@ export const ExampleLab4 = () => {
             attacked: defenderOutcome(
               G,
               T.map((_, j) => (j === BEST_PURE.k ? 1 : 0)),
-            ).target,
+            ).server,
           },
           response: (
             <>
@@ -300,16 +296,16 @@ export const ExampleLab4 = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {T.map((target, k) => {
+                  {T.map((server, k) => {
                     const x = T.map((_, j) => (j === k ? 1 : 0));
                     const outcome = defenderOutcome(G, x);
                     return (
                       <tr
-                        key={target.id}
+                        key={server.id}
                         className={k === BEST_PURE.k ? "is-best" : ""}
                       >
-                        <td>{target.id}</td>
-                        <td>{T[outcome.target].id}</td>
+                        <td>{server.id}</td>
+                        <td>{T[outcome.server].id}</td>
                         <td>
                           <strong>{round2(outcome.value)}</strong>
                         </td>
@@ -339,7 +335,6 @@ export const ExampleLab4 = () => {
       topic: "Why a certain defense fails",
       definition: [
         "Before reaching for anything more complicated, it is worth being precise about what went wrong with the pure commitments, because the fix follows directly from it.",
-        "A pure commitment has two properties at once: it is public, and it is certain. Public is forced on you, that is what commitment means. Certain is a choice, and it is the one that is costing you.",
       ],
       steps: [
         {
@@ -358,12 +353,12 @@ export const ExampleLab4 = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {T.map((target, k) => {
+                  {T.map((server, k) => {
                     const x = T.map((_, j) => (j === k ? 1 : 0));
-                    const hit = defenderOutcome(G, x).target;
+                    const hit = defenderOutcome(G, x).server;
                     return (
-                      <tr key={target.id}>
-                        <td>{target.id}</td>
+                      <tr key={server.id}>
+                        <td>{server.id}</td>
                         <td>{T[hit].id}</td>
                         <td>{hit === k ? "yes" : "no"}</td>
                       </tr>
@@ -377,9 +372,9 @@ export const ExampleLab4 = () => {
                 It just told the attacker to go to {T[1].id} instead.
               </p>
               <Note>
-                This is the real problem. A certain commitment does not defend a
-                target, it <em>redirects</em> the attacker. And with three
-                targets and one honeypot, there is always somewhere left to
+                This is the real problem. A single commitment does not defend a
+                server, it <em>redirects</em> the attacker. And with three
+                servers and one honeypot, there is always somewhere left to
                 redirect them to.
               </Note>
             </>
@@ -395,10 +390,10 @@ export const ExampleLab4 = () => {
                 You can make the attacker <strong>unsure</strong>.
               </p>
               <p className="dynamic-response">
-                A target that is definitely safe is worth its full value to
-                attack. A target that <em>might</em> be trapped is worth less,
+                A server that is definitely safe is worth its full value to
+                attack. A server that <em>might</em> be trapped is worth less,
                 because some of the time the attack fails and the attacker still
-                paid to try. You cannot cover three targets with one honeypot,
+                paid to try. You cannot cover three servers with one honeypot,
                 but you can make all three uncertain.
               </p>
               <p className="dynamic-response">
@@ -412,7 +407,7 @@ export const ExampleLab4 = () => {
                 {attackerPayoff(G, 1, false)} = {ua([0, 0.3, 0], 1)}
               </Formula>
               <Note>
-                The same target, the same honeypot, the same cost to you. Its
+                The same server, the same honeypot, the same cost to you. Its
                 value to the attacker fell from {ua(PURE_T1, 1)} to{" "}
                 {ua([0, 0.3, 0], 1)} purely because they stopped being certain.
                 That is the entire idea behind a mixed strategy, and the rest of
@@ -427,8 +422,8 @@ export const ExampleLab4 = () => {
     {
       topic: "Setting up the mixed strategy",
       definition: [
-        "A mixed strategy replaces the single choice with a probability for each target. You still deploy exactly one honeypot; what you are committing to is the odds of where it lands.",
-        "You commit to the odds publicly, so the attacker knows them. What they do not know is the draw. They have to choose a target before they find out where the honeypot went.",
+        "A mixed strategy replaces the single choice with a probability for each server. You still deploy exactly one honeypot; what you are committing to is the odds of where it lands.",
+        "You commit to the odds publicly, so the attacker knows them. What they do not know is the draw. They have to choose a server before they find out where the honeypot went.",
       ],
       steps: [
         {
@@ -449,7 +444,7 @@ export const ExampleLab4 = () => {
               <Note>
                 That constraint is doing real work later. It is the reason you
                 cannot simply raise every xi at once: coverage is a fixed budget
-                being divided up, and giving more to one target always means
+                being divided up, and giving more to one server always means
                 taking it from another.
               </Note>
             </>
@@ -457,7 +452,7 @@ export const ExampleLab4 = () => {
         },
         {
           question:
-            "To choose good numbers you first have to know what they do to the attacker. What does the attacker expect to earn at T1, for any x1?",
+            "To choose good numbers you first have to predict what the attacker will do. What does the attacker expect to earn at T1, for any x1?",
           view: { highlight: 0 },
           response: (
             <>
@@ -501,14 +496,6 @@ export const ExampleLab4 = () => {
                 &minus; x1) &middot; {attackerPayoff(G, 0, false)} ={" "}
                 {aLineText(0)}
               </Formula>
-              <Note>
-                Read the tidied form out loud: the attacker starts at{" "}
-                {aLine(0).intercept}, which is what {T[0].id} pays when it is
-                wide open, and loses {Math.abs(aLine(0).slope)} for every unit
-                of coverage you put on it. The {Math.abs(aLine(0).slope)} is
-                just the gap between walking off with {T[0].value} and walking
-                off with nothing.
-              </Note>
             </>
           ),
         },
@@ -525,22 +512,22 @@ export const ExampleLab4 = () => {
                 </Formula>
               ))}
               <p className="dynamic-response">
-                Three targets, three straight lines, each one falling as its own
+                Three servers, three equation, each one falling as its own
                 coverage rises:
               </p>
               <table className="lab4-table">
                 <thead>
                   <tr>
-                    <th>Target</th>
+                    <th>Server</th>
                     <th>Open</th>
                     <th>Covered</th>
                     <th>EUa</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {T.map((target, i) => (
-                    <tr key={target.id}>
-                      <td>{target.id}</td>
+                  {T.map((server, i) => (
+                    <tr key={server.id}>
+                      <td>{server.id}</td>
                       <td>{attackerPayoff(G, i, false)}</td>
                       <td>{attackerPayoff(G, i, true)}</td>
                       <td>
@@ -553,9 +540,9 @@ export const ExampleLab4 = () => {
               <Note>
                 Notice the slopes differ: {Math.abs(aLine(0).slope)},{" "}
                 {Math.abs(aLine(1).slope)} and {Math.abs(aLine(2).slope)}.
-                Coverage on {T[0].id} buys you more deterrence per unit than
-                coverage on {T[2].id}, because {T[0].id} has more to lose. That
-                is why the final answer will not just split the honeypot evenly.
+                Coverage on {T[0].id} buys you more per unit than coverage on{" "}
+                {T[2].id}, because {T[0].id} has more to lose. That is why the
+                final answer will not just split the honeypot evenly.
               </Note>
             </>
           ),
@@ -590,16 +577,11 @@ export const ExampleLab4 = () => {
             <>
               <p className="dynamic-response">
                 Two things should have happened. Pouring coverage onto the
-                target under attack pushed its line down until it stopped being
+                server under attack pushed its line down until it stopped being
                 the highest, and the instant that happened the attacker moved
                 somewhere else and every further unit you added there earned you
                 nothing.
               </p>
-              <Note>
-                Coverage only does work on the target the attacker is actually
-                going to hit. That is the single most useful thing to carry into
-                the next two pages.
-              </Note>
             </>
           ),
         },
@@ -614,14 +596,14 @@ export const ExampleLab4 = () => {
       steps: [
         {
           question:
-            "Say the defender commits to x = (0.5, 0.3, 0.2). What does the attacker expect at each target?",
+            "Say the defender commits to x = (0.5, 0.3, 0.2). What does the attacker expect at each server?",
           view: { coverage: DEMO },
           revealView: { coverage: DEMO, attacked: 1 },
           response: (
             <>
-              {T.map((target, i) => (
-                <Formula key={target.id}>
-                  EUa({target.id}) = {aLine(i).intercept} &minus;{" "}
+              {T.map((server, i) => (
+                <Formula key={server.id}>
+                  EUa({server.id}) = {aLine(i).intercept} &minus;{" "}
                   {Math.abs(aLine(i).slope)}({DEMO[i]}) = {ua(DEMO, i)}
                 </Formula>
               ))}
@@ -696,14 +678,14 @@ export const ExampleLab4 = () => {
                 So every bit of coverage holding {T[0].id} and {T[2].id} down{" "}
                 <em>below</em> {ua(DEMO, 1)} is doing nothing for you. It is
                 deterring an attack that was not going to happen. Move some of
-                it onto {T[1].id} and the target they actually want gets less
+                it onto {T[1].id} and the server they actually want gets less
                 attractive.
               </p>
               <Note>
                 Which raises the obvious question: how far can that go? Keep
-                shifting coverage onto whichever target is on top and{" "}
+                shifting coverage onto whichever server is on top and{" "}
                 <strong>it stops being on top</strong>. The process runs out
-                exactly when no target is strictly the favorite, which is the
+                exactly when no server is strictly the favorite, which is the
                 next page.
               </Note>
             </>
@@ -715,7 +697,7 @@ export const ExampleLab4 = () => {
     {
       topic: "Optimizing: make the attacker indifferent",
       definition: [
-        "Any target strictly below the attacker's best is a target they will never choose, so coverage spent holding it down is wasted. That is true of every mix except one: the mix where all three are equal.",
+        "Any server strictly below the attacker's best is a server they will never choose, so coverage spent holding it down is wasted. That is true of every mix except one: the mix where all three are equal.",
         "So the optimal commitment is the one that makes the attacker exactly indifferent. Not because indifference is nice in itself, but because it is the only arrangement with no wasted coverage left in it.",
       ],
       steps: [
@@ -734,7 +716,7 @@ export const ExampleLab4 = () => {
               <Note>
                 The tidy way to handle it is to call the common value{" "}
                 <strong>v</strong>, which is what the attacker ends up expecting
-                to earn whichever target they pick, and solve for each coverage
+                to earn whichever server they pick, and solve for each coverage
                 in terms of v.
               </Note>
             </>
@@ -745,8 +727,8 @@ export const ExampleLab4 = () => {
           view: { coverage: DEMO },
           response: (
             <>
-              {T.map((target, i) => (
-                <Formula key={target.id}>
+              {T.map((server, i) => (
+                <Formula key={server.id}>
                   {aLineText(i)} = v &nbsp;&rarr;&nbsp; x{i + 1} = (
                   {aLine(i).intercept} &minus; v) / {Math.abs(aLine(i).slope)}
                 </Formula>
@@ -760,7 +742,7 @@ export const ExampleLab4 = () => {
           ),
         },
         {
-          question: "Now use x1 + x2 + x3 = 1 to pin down v.",
+          question: "Now use x1 + x2 + x3 = 1 to solve for v.",
           view: { coverage: DEMO },
           response: (
             <>
@@ -788,19 +770,20 @@ export const ExampleLab4 = () => {
                 Compare that to the {ua(DEMO, 1)} the attacker was getting from
                 your guess. You have squeezed their best available outcome down
                 to {round2(EQ.attackerValue)}, and critically they cannot dodge
-                it by switching targets, because all three now pay the same.
+                it by switching servers, because all three now pay the same.
               </Note>
             </>
           ),
         },
         {
-          question: "Substitute v back in. What should you commit to?",
+          question:
+            "We have solved for the attackers expected utility. Plugging v back into x1, x2, x3 gives us the defender's probabilities. What should you commit to?",
           view: { coverage: DEMO },
           revealView: { coverage: EQ.coverage },
           response: (
             <>
-              {T.map((target, i) => (
-                <Formula key={target.id}>
+              {T.map((server, i) => (
+                <Formula key={server.id}>
                   x{i + 1} = ({aLine(i).intercept} &minus; 32/13) /{" "}
                   {Math.abs(aLine(i).slope)} = {fractionText(EQ.coverage[i])}{" "}
                   &asymp; {asPercent(EQ.coverage[i])}
@@ -809,15 +792,15 @@ export const ExampleLab4 = () => {
               <table className="lab4-table">
                 <thead>
                   <tr>
-                    <th>Target</th>
+                    <th>Server</th>
                     <th>Guess</th>
                     <th>Optimized</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {T.map((target, i) => (
-                    <tr key={target.id}>
-                      <td>{target.id}</td>
+                  {T.map((server, i) => (
+                    <tr key={server.id}>
+                      <td>{server.id}</td>
                       <td>{asPercent(DEMO[i], 0)}</td>
                       <td>
                         <strong>{asPercent(EQ.coverage[i])}</strong>
@@ -831,7 +814,7 @@ export const ExampleLab4 = () => {
               </p>
               <Note>
                 The big change is {T[1].id}, up from {asPercent(DEMO[1], 0)} to{" "}
-                {asPercent(EQ.coverage[1])}, which is precisely the target the
+                {asPercent(EQ.coverage[1])}, which is precisely the server the
                 attacker was walking to. The coverage moved to where it was
                 actually needed. And {T[2].id} still gets{" "}
                 {asPercent(EQ.coverage[2])} despite being worth the least on the
@@ -852,25 +835,25 @@ export const ExampleLab4 = () => {
       steps: [
         {
           question:
-            "Write your expected utility at each target, then evaluate it at the optimized coverage.",
+            "Write your expected utility at each server, then evaluate it at the optimized coverage.",
           view: { coverage: EQ.coverage },
           response: (
             <>
               <p className="dynamic-response">
-                Two cases again. If the attacker hits a covered target you keep
+                Two cases again. If the attacker hits a covered server you keep
                 everything and pay only Ch; if they hit an open one you lose its
                 value as well:
               </p>
-              {T.map((target, i) => (
-                <Formula key={target.id}>
-                  EUd({target.id}) = x{i + 1} &middot; {defenderPayoffCovered()}{" "}
+              {T.map((server, i) => (
+                <Formula key={server.id}>
+                  EUd({server.id}) = x{i + 1} &middot; {defenderPayoffCovered()}{" "}
                   + (1 &minus; x{i + 1}) &middot;{" "}
                   {round2(defenderEU(G, [0, 0, 0], i))} = {dLineText(i)}
                 </Formula>
               ))}
               <PayoffTable coverage={EQ.coverage} who="defender" />
               <Note>
-                Every row is marked, because every target is now one the
+                Every row is marked, because every server is now one the
                 attacker is willing to take. That is what the optimization was
                 for.
               </Note>
@@ -883,7 +866,7 @@ export const ExampleLab4 = () => {
           view: { coverage: EQ.coverage },
           revealView: {
             coverage: EQ.coverage,
-            attacked: defenderOutcome(G, EQ.coverage).target,
+            attacked: defenderOutcome(G, EQ.coverage).server,
           },
           response: (
             <>
@@ -898,7 +881,7 @@ export const ExampleLab4 = () => {
                 That sounds like wishful thinking, so here is why it is not. You
                 could always shave a sliver of coverage off {T[0].id} and put it
                 on {T[1].id}, making {T[1].id} strictly the attacker's best
-                target rather than merely tied. It would cost you almost
+                server rather than merely tied. It would cost you almost
                 nothing, so {round2(defenderOutcome(G, EQ.coverage).value)} is a
                 figure you can get arbitrarily close to. The convention saves
                 everyone from writing "minus a tiny amount" forever.
@@ -912,7 +895,7 @@ export const ExampleLab4 = () => {
           view: { coverage: EQ.coverage },
           revealView: {
             coverage: EQ.coverage,
-            attacked: defenderOutcome(G, EQ.coverage).target,
+            attacked: defenderOutcome(G, EQ.coverage).server,
           },
           response: (
             <>
@@ -927,12 +910,12 @@ export const ExampleLab4 = () => {
                 <tbody>
                   <tr>
                     <td>Pure, cover {T[BEST_PURE.k].id}</td>
-                    <td>{ua(PURE_T1, defenderOutcome(G, PURE_T1).target)}</td>
+                    <td>{ua(PURE_T1, defenderOutcome(G, PURE_T1).server)}</td>
                     <td>{round2(BEST_PURE.value)}</td>
                   </tr>
                   <tr>
                     <td>Mixed, by guesswork</td>
-                    <td>{ua(DEMO, defenderOutcome(G, DEMO).target)}</td>
+                    <td>{ua(DEMO, defenderOutcome(G, DEMO).server)}</td>
                     <td>{round2(defenderOutcome(G, DEMO).value)}</td>
                   </tr>
                   <tr className="is-best">
@@ -955,7 +938,7 @@ export const ExampleLab4 = () => {
               </p>
               <Note>
                 Nothing about the network changed across those three rows. No
-                second honeypot, no cheaper costs, no more valuable targets. The
+                second honeypot, no cheaper costs, no more valuable servers. The
                 whole gain came from committing first, deliberately, and then
                 choosing the commitment that leaves the attacker with the worst
                 available best option.
@@ -980,18 +963,12 @@ export const ExampleLab4 = () => {
   const isLastStepOfPage = stepIndex === currentPage.steps.length - 1;
   const isLastPage = pageIndex === pages.length - 1;
   const isFinalStep = isLastPage && isLastStepOfPage;
-  // From the roadmap the arrow just starts the walkthrough. Everywhere else it
-  // waits for the answer to be shown. Without the showIntro case, stepping back
-  // to the roadmap after revealing page 1 would leave the arrow live and skip
-  // straight past the intro.
-  const canAdvance = showIntro || (!isComplete && isRevealed);
+  const canAdvance = !isComplete && isRevealed;
 
   const reveal = () => setRevealed((prev) => new Set(prev).add(key));
 
   const goForward = () => {
-    if (showIntro) {
-      setShowIntro(false);
-    } else if (isFinalStep) {
+    if (isFinalStep) {
       setIsComplete(true);
     } else if (isLastStepOfPage) {
       setPageIndex(pageIndex + 1);
@@ -1016,14 +993,12 @@ export const ExampleLab4 = () => {
     }
   };
 
-  const atVeryStart = showIntro;
-
   // Which diagram to draw. The interactive step is driven by its sliders; every
   // other step uses its own view, swapping to revealView once answered.
   const view: View = showIntro
     ? {}
     : currentStep.interactive
-      ? { coverage: playCoverage, attacked: playHit.target }
+      ? { coverage: playCoverage, attacked: playHit.server }
       : ((isRevealed ? currentStep.revealView : undefined) ??
         currentStep.view ??
         {});
@@ -1032,19 +1007,32 @@ export const ExampleLab4 = () => {
     <div className="lab-panel-columns lab4">
       <div className="lab-panel-static">
         <div className="static-lab lab4-static-lab">
-          <TargetNetwork
+          {/* Values live here rather than inside the server boxes, the same
+              way Lab 2 puts its variables in a corner panel. Keeps the
+              diagram about structure and coverage. */}
+          <div className="lab4-variables">
+            {T.map((server) => (
+              <div className="lab4-variables-row" key={server.id}>
+                <span className="lab4-variables-key">{server.id}</span>
+                <span className="lab4-variables-val">{server.value}</span>
+              </div>
+            ))}
+            <div className="lab4-variables-row is-divider">
+              <span className="lab4-variables-key">Ch</span>
+              <span className="lab4-variables-val">{G.honeypotCost}</span>
+            </div>
+            <div className="lab4-variables-row">
+              <span className="lab4-variables-key">SUM(V)</span>
+              <span className="lab4-variables-val">{SV}</span>
+            </div>
+          </div>
+          <ServerNetwork
             game={G}
             coverage={view.coverage}
             attacked={view.attacked ?? null}
             highlight={view.highlight ?? null}
           />
           <div className="lab4-legend">
-            <span>
-              <b>SUM(V)</b> {SV}
-            </span>
-            <span>
-              <b>Ch</b> {G.honeypotCost}
-            </span>
             <span>
               <code>Ua = Di &minus; Cei</code>
             </span>
@@ -1059,214 +1047,212 @@ export const ExampleLab4 = () => {
 
       <div className="lab-panel-dynamic">
         <div className="dynamic-lab lab4-dynamic">
-          {showIntro ? (
-            <div className="dynamic-intro">
-              <div className="dynamic-definition">
-                <CIcon
-                  icon={cilLightbulb}
-                  className="dynamic-definition-icon"
-                />
-                <div>
-                  <p>
-                    Labs 1 through 3 all had players choosing at the same time,
-                    or reacting to something already done. Lab 4 is about going{" "}
-                    <strong>first on purpose</strong>, in the open, and being
-                    better off for it.
-                  </p>
-                </div>
-              </div>
+          {/* Everything except the arrows scrolls inside here. Without a
+              bounded scroll container the intro simply grew taller than the
+              panel and spilled out past the bottom border of the tab, which is
+              why the Start button appeared below the grey line. */}
+          <div className="lab4-scroll">
+            {showIntro ? (
+              <div className="dynamic-intro">
+                <p className="dynamic-topic">Stackelberg Security Game</p>
 
-              <p className="dynamic-topic">Stackelberg Security Game</p>
+                <p className="dynamic-intro-text">
+                  A <strong>Stackelberg game</strong> has two players who do not
+                  move at the same time and do not know the same things. The{" "}
+                  <strong>leader</strong> picks a strategy and commits to it
+                  publicly, in advance. The <strong>follower</strong> sees that
+                  commitment and then picks whatever is best for them against
+                  it.
+                </p>
 
-              <p className="dynamic-intro-text">
-                A <strong>Stackelberg game</strong> has two players who do not
-                move at the same time and do not know the same things. The{" "}
-                <strong>leader</strong> picks a strategy and commits to it
-                publicly, in advance. The <strong>follower</strong> sees that
-                commitment and then picks whatever is best for them against it.
-              </p>
+                <p className="dynamic-intro-text">
+                  Showing your hand first sounds like a disadvantage. It is not.
+                  Because the follower is predictable, they will always choose
+                  the best option, the leader gets to anticipate this and choose{" "}
+                  <em>which</em> best response they will be facing. Committing
+                  first is a way of steering the other player.
+                </p>
 
-              <p className="dynamic-intro-text">
-                Showing your hand first sounds like a disadvantage. It is not.
-                Because the follower is predictable, they will always
-                best-respond, the leader gets to choose <em>which</em> best
-                response they will be facing. Committing first is a way of
-                steering the other player.
-              </p>
+                <Note>
+                  In this lab you are the <strong>defender</strong>, and the
+                  defender is the leader. That is the reverse of Lab 3, where
+                  the defender watched the attacker move and then answered. Here
+                  you go first, everyone can see it, and you cannot change your
+                  mind afterwards.
+                </Note>
 
-              <Note>
-                In this lab you are the <strong>defender</strong>, and the
-                defender is the leader. That is the reverse of Lab 3, where the
-                defender watched the attacker move and then answered. Here you
-                go first, everyone can see it, and you cannot change your mind
-                afterwards.
-              </Note>
+                <p className="dynamic-topic">Expected utility</p>
 
-              <p className="dynamic-topic">Expected utility</p>
+                <p className="dynamic-intro-text">
+                  The other idea this lab leans on is{" "}
+                  <strong>expected utility</strong>. If you commit to a
+                  probability instead of a certainty, there is no single payoff
+                  any more, there is a weighted average of the payoffs that
+                  could happen. Expected utility is that average: every possible
+                  outcome, multiplied by how often it occurs, added together.
+                </p>
 
-              <p className="dynamic-intro-text">
-                The other idea this lab leans on is{" "}
-                <strong>expected utility</strong>. If you commit to a
-                probability instead of a certainty, there is no single payoff
-                any more, there is a weighted average of the payoffs that could
-                happen. Expected utility is that average: every possible
-                outcome, multiplied by how often it occurs, added together.
-              </p>
+                <p className="dynamic-intro-text">
+                  Say a server is covered 30% of the time, attacking it earns
+                  the attacker &minus;1 when it is covered and 5 when it is not.
+                  Their expected utility is{" "}
+                  <code>0.3 &times; (&minus;1) + 0.7 &times; 5 = 3.2</code>.
+                  They never actually collect 3.2 on any single attack. It is
+                  what they would average over many, and it is what a rational
+                  attacker chooses on.
+                </p>
 
-              <p className="dynamic-intro-text">
-                Say a target is covered 30% of the time, attacking it earns the
-                attacker &minus;1 when it is covered and 5 when it is not. Their
-                expected utility is{" "}
-                <code>0.3 &times; (&minus;1) + 0.7 &times; 5 = 3.2</code>. They
-                never actually collect 3.2 on any single attack. It is what they
-                would average over many, and it is what a rational attacker
-                chooses on.
-              </p>
-
-              <div className="dynamic-controls">
-                <CButton
-                  style={{
-                    backgroundColor: LAB4_ACCENT,
-                    borderColor: LAB4_ACCENT,
-                  }}
-                  onClick={() => setShowIntro(false)}
-                >
-                  Start the walkthrough
-                </CButton>
-              </div>
-            </div>
-          ) : isComplete ? (
-            <div className="dynamic-finish">
-              <p className="dynamic-finish-title">Walkthrough complete!</p>
-              <p className="dynamic-finish-subtitle">
-                You have taken a defense from {round2(BEST_PURE.value)} up to{" "}
-                {round2(defenderOutcome(G, EQ.coverage).value)} without adding a
-                single resource.
-              </p>
-              <div className="concepts-learned">
-                <p className="concepts-learned-title">Concepts learned</p>
-                <ul className="concepts-learned-list">
-                  {[
-                    "Stackelberg games: leader commits, follower responds",
-                    "Why commitment is different from reacting",
-                    "Expected utility under a mixed commitment",
-                    "The attacker's best response function",
-                    "Making the follower indifferent to optimize",
-                    "Strong Stackelberg tie-breaking",
-                  ].map((concept) => (
-                    <li key={concept}>
-                      <CIcon
-                        icon={cilCheckCircle}
-                        className="concepts-learned-icon"
-                      />
-                      <span>{concept}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <p className="dynamic-finish-subtitle">
-                Practice is now open to go and try it out yourself
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="dynamic-definition">
-                <CIcon
-                  icon={cilLightbulb}
-                  className="dynamic-definition-icon"
-                />
-                <div>
-                  {currentPage.definition.map((line, i) => (
-                    <p key={i}>{line}</p>
-                  ))}
-                </div>
-              </div>
-
-              <p className="dynamic-topic">{currentPage.topic}</p>
-              <p className="dynamic-question">{currentStep.question}</p>
-
-              {currentStep.interactive && (
-                <div className="lab4-sliders">
-                  <label>
-                    <span>
-                      x1 <b>{asPercent(playCoverage[0], 0)}</b>
-                    </span>
-                    <Slider
-                      value={playX1}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      onChange={(_, value) =>
-                        setPlayX1(Math.min(value as number, 1 - playX2))
-                      }
-                      sx={{ color: LAB4_ACCENT }}
-                    />
-                  </label>
-                  <label>
-                    <span>
-                      x2 <b>{asPercent(playCoverage[1], 0)}</b>
-                    </span>
-                    <Slider
-                      value={playX2}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      onChange={(_, value) =>
-                        setPlayX2(Math.min(value as number, 1 - playX1))
-                      }
-                      sx={{ color: LAB4_ACCENT }}
-                    />
-                  </label>
-                  <p className="lab4-sliders-rest">
-                    x3 takes whatever is left:{" "}
-                    <b>{asPercent(playCoverage[2], 0)}</b>
-                  </p>
-                  <PayoffTable coverage={playCoverage} who="attacker" />
-                  <p className="dynamic-response">
-                    The attacker takes <strong>{T[playHit.target].id}</strong>,
-                    and you get <strong>{round2(playHit.value)}</strong>.
-                  </p>
-                </div>
-              )}
-
-              {isRevealed && currentStep.response}
-
-              {!isRevealed && (
                 <div className="dynamic-controls">
                   <CButton
                     style={{
                       backgroundColor: LAB4_ACCENT,
                       borderColor: LAB4_ACCENT,
                     }}
-                    onClick={reveal}
+                    onClick={() => setShowIntro(false)}
                   >
-                    Show Answer
+                    Start Walkthrough
                   </CButton>
                 </div>
-              )}
-            </>
-          )}
+              </div>
+            ) : isComplete ? (
+              <div className="dynamic-finish">
+                <p className="dynamic-finish-title">Walkthrough complete!</p>
+                <p className="dynamic-finish-subtitle">
+                  You have taken a defense from {round2(BEST_PURE.value)} up to{" "}
+                  {round2(defenderOutcome(G, EQ.coverage).value)} without adding
+                  a single resource.
+                </p>
+                <div className="concepts-learned">
+                  <p className="concepts-learned-title">Concepts learned</p>
+                  <ul className="concepts-learned-list">
+                    {[
+                      "Stackelberg games: leader commits, follower responds",
+                      "Why commitment is different from reacting",
+                      "Expected utility under a mixed commitment",
+                      "The attacker's best response function",
+                      "Making the follower indifferent to optimize",
+                      "Strong Stackelberg tie-breaking",
+                    ].map((concept) => (
+                      <li key={concept}>
+                        <CIcon
+                          icon={cilCheckCircle}
+                          className="concepts-learned-icon"
+                        />
+                        <span>{concept}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p className="dynamic-finish-subtitle">
+                  Practice is now open to go and try it out yourself
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="dynamic-definition">
+                  <CIcon
+                    icon={cilLightbulb}
+                    className="dynamic-definition-icon"
+                  />
+                  <div>
+                    {currentPage.definition.map((line, i) => (
+                      <p key={i}>{line}</p>
+                    ))}
+                  </div>
+                </div>
 
-          <div className="dynamic-nav">
-            <CButton color="secondary" onClick={goBack} disabled={atVeryStart}>
-              <CIcon icon={cilArrowLeft} />
-            </CButton>
-            <CButton
-              color="secondary"
-              onClick={goForward}
-              disabled={!canAdvance}
-            >
-              <CIcon icon={cilArrowRight} />
-            </CButton>
+                <p className="dynamic-topic">{currentPage.topic}</p>
+                <p className="dynamic-question">{currentStep.question}</p>
+
+                {currentStep.interactive && (
+                  <div className="lab4-sliders">
+                    <label>
+                      <span>
+                        x1 <b>{asPercent(playCoverage[0], 0)}</b>
+                      </span>
+                      <Slider
+                        value={playX1}
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        onChange={(_, value) =>
+                          setPlayX1(Math.min(value as number, 1 - playX2))
+                        }
+                        sx={{ color: LAB4_ACCENT }}
+                      />
+                    </label>
+                    <label>
+                      <span>
+                        x2 <b>{asPercent(playCoverage[1], 0)}</b>
+                      </span>
+                      <Slider
+                        value={playX2}
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        onChange={(_, value) =>
+                          setPlayX2(Math.min(value as number, 1 - playX1))
+                        }
+                        sx={{ color: LAB4_ACCENT }}
+                      />
+                    </label>
+                    <p className="lab4-sliders-rest">
+                      x3 takes whatever is left:{" "}
+                      <b>{asPercent(playCoverage[2], 0)}</b>
+                    </p>
+                    <PayoffTable coverage={playCoverage} who="attacker" />
+                    <p className="dynamic-response">
+                      The attacker takes <strong>{T[playHit.server].id}</strong>
+                      , and you get <strong>{round2(playHit.value)}</strong>.
+                    </p>
+                  </div>
+                )}
+
+                {isRevealed && currentStep.response}
+
+                {!isRevealed && (
+                  <div className="dynamic-controls">
+                    <CButton
+                      style={{
+                        backgroundColor: LAB4_ACCENT,
+                        borderColor: LAB4_ACCENT,
+                      }}
+                      onClick={reveal}
+                    >
+                      Show Answer
+                    </CButton>
+                  </div>
+                )}
+              </>
+            )}
           </div>
+
+          {/* Outside the scroller, so the arrows stay pinned to the bottom of
+              the panel instead of being chased off by long pages. */}
+          {/* No arrows on the roadmap. It has its own button, and offering
+              two ways forward from the same screen is just ambiguity. */}
+          {!showIntro && (
+            <div className="dynamic-nav">
+              <CButton color="secondary" onClick={goBack}>
+                <CIcon icon={cilArrowLeft} />
+              </CButton>
+              <CButton
+                color="secondary"
+                onClick={goForward}
+                disabled={!canAdvance}
+              >
+                <CIcon icon={cilArrowRight} />
+              </CButton>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-/** Defender's payoff when the attacked target turned out to be covered. It is
- *  the same number for every target, since no damage is done either way. */
+/** Defender's payoff when the attacked server turned out to be covered. It is
+ *  the same number for every server, since no damage is done either way. */
 function defenderPayoffCovered(): number {
   return round2(defenderEU(G, [1, 1, 1], 0));
 }

@@ -80,7 +80,7 @@ export const LABS: Lab[] = [
     title: "Lab 4: Stackelberg Game",
     subtitle: "Commitment",
     description:
-      "Leader and follower, commitment, mixed defense strategies, expected utility, and optimizing against a best-responding attacker.",
+      "Leader and follower, commitment, mixed defense strategies, expected utility, and optimizing coverage against a best-responding attacker.",
     icon: cilGraph,
     accent: "#f08c00",
     sidebarPath: "/lab4",

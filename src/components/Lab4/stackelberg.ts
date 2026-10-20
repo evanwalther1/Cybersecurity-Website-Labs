@@ -14,39 +14,43 @@
 //            └────┘      └────┘      └────┘
 //
 // The DEFENDER is the Stackelberg leader. They commit, publicly and in advance,
-// to a probability of covering each target with a honeypot. The ATTACKER is the
+// to a probability of covering each server with a honeypot. The ATTACKER is the
 // follower: they see those probabilities (but not where the honeypot actually
-// landed) and then pick one target to hit.
+// landed) and then pick one server to hit.
 
-export interface Target {
+/** Lab 4 declares its own rather than importing Lab 3's, so the two labs stay
+ *  independent of each other. */
+export type Player = "attacker" | "defender";
+
+export interface Server {
   id: string;
-  /** What the target is worth, and therefore the damage if it is taken. */
+  /** What the server is worth, and therefore the damage if it is taken. */
   value: number;
   /** What the attacker pays to reach it, win or lose. */
   exploitCost: number;
 }
 
 export interface GameSetup {
-  targets: Target[];
+  servers: Server[];
   /** The defender's cost of deploying the honeypot, paid either way. */
   honeypotCost: number;
 }
 
-/** A defender commitment: one coverage probability per target, summing to 1. */
+/** A defender commitment: one coverage probability per server, summing to 1. */
 export type Coverage = number[];
 
 // The instance the Example walks through, exactly as drawn on the whiteboard.
 export const EXAMPLE_GAME: GameSetup = {
-  targets: [
-    { id: "T1", value: 8, exploitCost: 2 },
-    { id: "T2", value: 6, exploitCost: 1 },
-    { id: "T3", value: 4, exploitCost: 1 },
+  servers: [
+    { id: "S1", value: 8, exploitCost: 2 },
+    { id: "S2", value: 6, exploitCost: 1 },
+    { id: "S3", value: 4, exploitCost: 1 },
   ],
   honeypotCost: 1,
 };
 
 export const totalValue = (game: GameSetup): number =>
-  game.targets.reduce((sum, target) => sum + target.value, 0);
+  game.servers.reduce((sum, server) => sum + server.value, 0);
 
 // ---------------------------------------------------------------------------
 // Payoffs for a single outcome
@@ -55,28 +59,28 @@ export const totalValue = (game: GameSetup): number =>
 //   Ua = Di - Cei          damage taken minus the cost of the exploit
 //   Ud = SUM(V) - Di - Ch  total asset value minus damage minus honeypot cost
 //
-// The hinge of the whole lab is that covering a target sets Di to 0 while the
+// The hinge of the whole lab is that covering a server sets Di to 0 while the
 // attacker still pays Cei. Protection does not refund a failed attack, which is
-// why coverage can make a target unattractive without being certain.
+// why coverage can make a server unattractive without being certain.
 
-/** Attacker's payoff at target `i`, given whether it turned out to be covered. */
+/** Attacker's payoff at server `i`, given whether it turned out to be covered. */
 export const attackerPayoff = (
   game: GameSetup,
   i: number,
   covered: boolean,
 ): number => {
-  const target = game.targets[i];
-  const damage = covered ? 0 : target.value;
-  return damage - target.exploitCost;
+  const server = game.servers[i];
+  const damage = covered ? 0 : server.value;
+  return damage - server.exploitCost;
 };
 
-/** Defender's payoff when target `i` is attacked, given whether it was covered. */
+/** Defender's payoff when server `i` is attacked, given whether it was covered. */
 export const defenderPayoff = (
   game: GameSetup,
   i: number,
   covered: boolean,
 ): number => {
-  const damage = covered ? 0 : game.targets[i].value;
+  const damage = covered ? 0 : game.servers[i].value;
   return totalValue(game) - damage - game.honeypotCost;
 };
 
@@ -84,7 +88,7 @@ export const defenderPayoff = (
 // Expected payoffs under a commitment
 // ---------------------------------------------------------------------------
 //
-// Both expectations are linear in that target's own coverage, which is what
+// Both expectations are linear in that server's own coverage, which is what
 // lets them be written as a single line each:
 //
 //   EUa(Ti) = xi·(covered) + (1-xi)·(uncovered)  =  intercept + slope·xi
@@ -93,7 +97,7 @@ export const defenderPayoff = (
 // EUd = 9+8x1, 11+6x2, 13+4x3, matching the whiteboard.
 
 export interface LineForm {
-  /** Value when this target has zero coverage. */
+  /** Value when this server has zero coverage. */
   intercept: number;
   /** How much one unit of coverage moves it. Negative for the attacker. */
   slope: number;
@@ -134,7 +138,7 @@ export const defenderEU = (
 const EPS = 1e-9;
 
 /**
- * Every target the attacker is willing to hit: those whose expected payoff ties
+ * Every server the attacker is willing to hit: those whose expected payoff ties
  * for the maximum. Usually one, but at the defender's optimum it is all of
  * them, which is the point of the optimum.
  */
@@ -142,7 +146,7 @@ export const bestResponses = (
   game: GameSetup,
   coverage: Coverage,
 ): number[] => {
-  const values = game.targets.map((_, i) => attackerEU(game, coverage, i));
+  const values = game.servers.map((_, i) => attackerEU(game, coverage, i));
   const best = Math.max(...values);
   return values
     .map((value, i) => ({ value, i }))
@@ -151,19 +155,19 @@ export const bestResponses = (
 };
 
 /**
- * The single target the attacker takes, under the **Strong Stackelberg**
+ * The single server the attacker takes, under the **Strong Stackelberg**
  * convention: when the follower is indifferent they break the tie in the
  * leader's favor.
  *
  * This is not a detail we can leave implicit. At the defender's optimum the
- * attacker is indifferent across every target BY CONSTRUCTION, so without a
- * stated tie-breaking rule the question "which target do they hit" has no
+ * attacker is indifferent across every server BY CONSTRUCTION, so without a
+ * stated tie-breaking rule the question "which server do they hit" has no
  * answer exactly where the lab is trying to land. The usual justification is
  * that the leader can always shift an arbitrarily small amount of coverage to
- * make the favorable target strictly best, so the favorable tie-break is the
+ * make the favorable server strictly best, so the favorable tie-break is the
  * limit of strategies the leader really does have.
  */
-export const attackedTarget = (
+export const attackedServer = (
   game: GameSetup,
   coverage: Coverage,
 ): number => {
@@ -177,9 +181,9 @@ export const attackedTarget = (
 export const defenderOutcome = (
   game: GameSetup,
   coverage: Coverage,
-): { target: number; value: number } => {
-  const target = attackedTarget(game, coverage);
-  return { target, value: defenderEU(game, coverage, target) };
+): { server: number; value: number } => {
+  const server = attackedServer(game, coverage);
+  return { server, value: defenderEU(game, coverage, server) };
 };
 
 // ---------------------------------------------------------------------------
@@ -188,7 +192,7 @@ export const defenderOutcome = (
 
 /**
  * The coverage that leaves the attacker exactly indifferent between every
- * target, i.e. the solution to
+ * Server, i.e. the solution to
  *
  *   EUa(T1) = EUa(T2) = ... = v,   SUM(xi) = 1
  *
@@ -199,8 +203,8 @@ export const defenderOutcome = (
  * below just finds it without needing the algebra written out per game size.
  *
  * Returns null when the answer is not a valid distribution, which happens when
- * a target is unattractive enough that its equalizing share comes out negative.
- * That case needs the target dropped and the rest re-solved, so callers must
+ * a server is unattractive enough that its equalizing share comes out negative.
+ * That case needs the server dropped and the rest re-solved, so callers must
  * not assume the equalizer is always the answer.
  */
 export const equalizingCoverage = (
@@ -211,12 +215,12 @@ export const equalizingCoverage = (
     return (line.intercept - v) / -line.slope;
   };
   const sumAt = (v: number) =>
-    game.targets.reduce((sum, _, i) => sum + shareAt(v, i), 0);
+    game.servers.reduce((sum, _, i) => sum + shareAt(v, i), 0);
 
   // Bracket v between "everything covered" and "nothing covered".
-  let lo = Math.min(...game.targets.map((_, i) => attackerPayoff(game, i, true)));
+  let lo = Math.min(...game.servers.map((_, i) => attackerPayoff(game, i, true)));
   let hi = Math.max(
-    ...game.targets.map((_, i) => attackerPayoff(game, i, false)),
+    ...game.servers.map((_, i) => attackerPayoff(game, i, false)),
   );
   for (let step = 0; step < 200; step += 1) {
     const mid = (lo + hi) / 2;
@@ -224,7 +228,7 @@ export const equalizingCoverage = (
     else hi = mid;
   }
   const v = (lo + hi) / 2;
-  const coverage = game.targets.map((_, i) => shareAt(v, i));
+  const coverage = game.servers.map((_, i) => shareAt(v, i));
 
   if (coverage.some((x) => x < -EPS || x > 1 + EPS)) return null;
   return { coverage, attackerValue: v };
@@ -234,10 +238,10 @@ export const equalizingCoverage = (
  * The defender's genuinely optimal commitment, found properly rather than by
  * assuming the equalizer is it.
  *
- * For each target t, this asks: what is the most the defender can get while
+ * For each server t, this asks: what is the most the defender can get while
  * making t the attacker's best response? That is a small linear program, and
  * because every constraint is linear in a single xi it can be solved directly:
- * push coverage onto t as far as possible, holding every other target at the
+ * push coverage onto t as far as possible, holding every other server at the
  * least coverage that keeps it no more attractive than t. The best answer
  * across all t is the optimum.
  *
@@ -246,13 +250,13 @@ export const equalizingCoverage = (
  */
 export const defenderOptimum = (
   game: GameSetup,
-): { coverage: Coverage; target: number; value: number } => {
-  const n = game.targets.length;
-  let best: { coverage: Coverage; target: number; value: number } | null = null;
+): { coverage: Coverage; server: number; value: number } => {
+  const n = game.servers.length;
+  let best: { coverage: Coverage; server: number; value: number } | null = null;
 
   for (let t = 0; t < n; t += 1) {
     // Attacker value at t as a function of its own coverage, and for every
-    // other target the coverage needed to pull it down to that same value.
+    // other server the coverage needed to pull it down to that same value.
     const tLine = attackerLine(game, t);
     const neededElsewhere = (vAtT: number, i: number) => {
       const line = attackerLine(game, i);
@@ -292,7 +296,7 @@ export const defenderOptimum = (
 
     const value = defenderEU(game, coverage, t);
     if (!best || value > best.value + EPS) {
-      best = { coverage, target: t, value };
+      best = { coverage, server: t, value };
     }
   }
 
@@ -332,4 +336,92 @@ export const fractionText = (x: number): string => {
   return f && f.denominator !== 1
     ? `${f.numerator}/${f.denominator}`
     : String(round2(x));
+};
+
+// ---------------------------------------------------------------------------
+// Practice game generation
+// ---------------------------------------------------------------------------
+
+// Note the payoff lines collapse to something very simple once written out.
+// With value V and exploit cost C on a server:
+//
+//   EUa = (V - C) - V*x      covered pays -C, uncovered pays V - C
+//   EUd = (SUM(V) - V - Ch) + V*x
+//
+// So the attacker's slope is just -V and the defender's is +V. Distinct server
+// values are therefore exactly what makes the three equations distinct, which
+// is why the generator insists on them.
+
+/** The trial commitment Practice uses before anything is optimized. */
+export const TRIAL_COVERAGE: Coverage = [0.5, 0.3, 0.2];
+
+const randInt = (rng: () => number, lo: number, hi: number) =>
+  lo + Math.floor(rng() * (hi - lo + 1));
+
+/**
+ * Why a candidate game cannot be used, or null if it is fine. Returning the
+ * reason rather than a bare boolean makes the acceptance rate debuggable.
+ */
+export const describeUnusablePractice = (game: GameSetup): string | null => {
+  const values = game.servers.map((s) => s.value);
+  if (new Set(values).size !== values.length) return "duplicate server values";
+  if (game.servers.some((s) => s.exploitCost >= s.value)) {
+    return "a server costs more to reach than it is worth";
+  }
+
+  // The attacker must have a single clear best response at the trial mix, or
+  // the "which one do you hit" question has no unique answer.
+  if (bestResponses(game, TRIAL_COVERAGE).length !== 1) return "trial mix ties";
+
+  const equalizer = equalizingCoverage(game);
+  if (!equalizer) return "equalizer infeasible";
+
+  // Shares have to be far enough apart to be worth asking for separately, and
+  // far enough from the ends that the answer is not 0% or 100%.
+  const shares = equalizer.coverage;
+  if (shares.some((x) => x < 0.04 || x > 0.9)) return "share at an extreme";
+  for (let i = 0; i < shares.length; i += 1) {
+    for (let j = i + 1; j < shares.length; j += 1) {
+      if (Math.abs(shares[i] - shares[j]) < 0.02) return "shares too close";
+    }
+  }
+
+  // The lab's whole point is that optimizing beats guessing, so it has to.
+  const trial = defenderOutcome(game, TRIAL_COVERAGE).value;
+  const best = defenderOutcome(game, shares).value;
+  if (best <= trial + 0.05) return "optimizing gains nothing";
+
+  return null;
+};
+
+export interface PracticeGame {
+  game: GameSetup;
+  equalizer: Coverage;
+  /** What the attacker expects at every server once coverage is optimal. */
+  attackerValue: number;
+}
+
+/** Rejection sampling. The gate is cheap, so this is simpler than construction. */
+export const generatePracticeGame = (
+  rng: () => number = Math.random,
+  maxAttempts = 20000,
+): PracticeGame => {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const game: GameSetup = {
+      servers: [
+        { id: "S1", value: randInt(rng, 5, 12), exploitCost: randInt(rng, 1, 4) },
+        { id: "S2", value: randInt(rng, 5, 12), exploitCost: randInt(rng, 1, 4) },
+        { id: "S3", value: randInt(rng, 5, 12), exploitCost: randInt(rng, 1, 4) },
+      ],
+      honeypotCost: randInt(rng, 1, 3),
+    };
+    if (describeUnusablePractice(game) !== null) continue;
+    const equalizer = equalizingCoverage(game)!;
+    return {
+      game,
+      equalizer: equalizer.coverage,
+      attackerValue: equalizer.attackerValue,
+    };
+  }
+  throw new Error("Could not generate a usable Lab 4 practice game.");
 };

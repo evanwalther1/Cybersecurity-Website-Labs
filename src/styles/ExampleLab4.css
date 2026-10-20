@@ -86,9 +86,9 @@
   fill: var(--cui-body-color, #212529);
 }
 
-/* -------------------------------------------------------------- targets --- */
+/* -------------------------------------------------------------- Servers --- */
 
-.lab4-target rect {
+.lab4-server rect {
   fill: var(--cui-tertiary-bg, #f1f3f5);
   stroke: color-mix(in srgb, var(--cui-body-color, #212529) 45%, transparent);
   stroke-width: 2;
@@ -97,35 +97,23 @@
     stroke-width 0.25s ease;
 }
 
-.lab4-target.is-highlit rect {
+.lab4-server.is-highlit rect {
   stroke: var(--lab4-accent);
   stroke-width: 3.5;
 }
 
-.lab4-target.is-attacked rect {
+.lab4-server.is-attacked rect {
   stroke: var(--lab4-attacker);
   stroke-width: 3.5;
 }
 
-.lab4-target-id {
+.lab4-server-id {
   font-size: 17px;
   font-weight: 700;
   text-anchor: middle;
   fill: var(--cui-body-color, #212529);
 }
 
-.lab4-target-value {
-  font-size: 11.5px;
-  text-anchor: middle;
-  fill: var(--cui-secondary-color, #6c757d);
-}
-
-.lab4-target-nocover {
-  font-size: 11px;
-  font-style: italic;
-  text-anchor: middle;
-  fill: var(--cui-secondary-color, #6c757d);
-}
 
 /* The coverage bar is the defender's, so it takes the defender's color. The
    width is animated because the walkthrough steps between three different
@@ -139,20 +127,28 @@
   transition: width 0.4s ease;
 }
 
-.lab4-target-pct {
+.lab4-server-pct {
   font-size: 12px;
   font-weight: 700;
   text-anchor: middle;
   fill: var(--cui-body-color, #212529);
 }
 
-.lab4-target-hit {
+.lab4-server-hit {
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   text-anchor: middle;
   fill: var(--lab4-attacker);
+}
+
+/* Quiet by design: it explains a notation, it is not part of the diagram. */
+.lab4-network-caption {
+  font-size: 11.5px;
+  font-style: italic;
+  text-anchor: middle;
+  fill: var(--cui-secondary-color, #6c757d);
 }
 
 /* --------------------------------------------------------------- legend --- */
@@ -283,15 +279,6 @@
   color: var(--lab4-accent);
 }
 
-/* Placeholder until Practice Lab 4 is built. */
-.lab4-practice-pending {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1.5rem;
-  color: var(--cui-secondary-color, #6c757d);
-}
 
 /* ------------------------------------------------------------- roadmap --- */
 
@@ -345,16 +332,81 @@
   color: var(--cui-secondary-color, #6c757d);
 }
 
-/* The intro runs long, so it scrolls rather than pushing the arrows off. */
-.lab4-dynamic .dynamic-intro {
-  min-height: 0;
-  overflow-y: auto;
+/* Height chain for the right-hand panel.
+   .lab-panel-dynamic is a plain block in LabPanel.css, so nothing downstream
+   had a bounded height and `overflow-y: auto` on the content was inert: the
+   intro just grew and overflowed the bordered tab panel. Each link below has
+   to be a flex column with min-height:0 for the scroller at the end of the
+   chain to have something to scroll against. */
+.lab-panel-columns.lab4 .lab-panel-dynamic {
+  display: flex;
+  flex-direction: column;
 }
 
-.lab4-dynamic .dynamic-intro code {
+.lab4-dynamic {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.lab4-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Breathing room so text does not sit under the scrollbar. */
+  padding-right: 0.4rem;
+}
+
+.lab4-scroll .dynamic-intro code {
   padding: 0.05rem 0.3rem;
   border-radius: 0.2rem;
   background: var(--cui-tertiary-bg);
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.85em;
+}
+
+/* ---------------------------------------------------- variables panel --- */
+
+/* Server values and the two constants, pinned to the top left of the diagram
+   the way Lab 2 does it. They were previously printed inside each server box,
+   which made the boxes carry two unrelated jobs: identity plus coverage, and
+   reference data that never changes. */
+.lab4-variables {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 5.5rem;
+  padding: 0.55rem 0.8rem;
+  background: var(--cui-tertiary-bg);
+  border: 1px solid color-mix(in srgb, var(--lab4-accent) 38%, transparent);
+  border-radius: 0.5rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.lab4-variables-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+/* Separates the per-server values from the constants below them. */
+.lab4-variables-row.is-divider {
+  margin-top: 0.2rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--cui-border-color, #dcdfe4);
+}
+
+.lab4-variables-key {
+  font-weight: 700;
+  color: var(--lab4-accent);
+}
+
+.lab4-variables-val {
+  color: var(--cui-body-color);
 }

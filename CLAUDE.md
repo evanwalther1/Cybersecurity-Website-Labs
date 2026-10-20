@@ -235,18 +235,25 @@ More Lab 3 details TBD as it's built out.
 
 Lab 4 is a **Stackelberg security game**. Where Lab 3 was about a defender *reacting* to a move already made, Lab 4 is about **commitment**: the defender moves first, publicly, and must choose while anticipating what the attacker will do about that choice.
 
-The definitive source for this lab is the whiteboard design session with the professor, not the written brief. The brief said "we can use the same network structure as Lab 3", but the whiteboard uses a flat one-hop network with three targets, and that is what is built.
+The definitive source for this lab is the whiteboard design session with the professor, not the written brief. The brief said "we can use the same network structure as Lab 3", but the whiteboard uses a flat one-hop network with three servers, and that is what is built.
 
 ### The game
 
 ```
-                      ( E )
-            e1=2 /     e2=1 |     e3=1 \
-            [ T1 ]       [ T2 ]      [ T3 ]
-            worth 8      worth 6     worth 4
+  values                   ( E )
+  S1   8           .2  /     .1  |     .1  \
+  S2   6         [ S1 ]      [ S2 ]      [ S3 ]
+  S3   4         [ 44% ]     [ 42% ]     [ 13% ]   <- coverage bars
+  Ch   1
+  SUM 18
 ```
 
-- Three **targets**, each with a value and an exploit cost the attacker pays whether or not the attack lands.
+Server values and the two constants live in a panel at the top left of the
+diagram, the way Lab 2 does it, rather than inside the server boxes. The boxes
+carry identity and coverage only. Edge labels are bare exploit costs
+(`.2`, `.1`, `.1`), matching how Lab 3 draws them.
+
+- Three **servers**, each with a value and an exploit cost the attacker pays whether or not the attack lands.
 - One **honeypot**, cost `Ch = 1`, paid up front before anyone moves.
 - `SUM(V) = 18`.
 
@@ -254,7 +261,7 @@ The definitive source for this lab is the whiteboard design session with the pro
 - `Ua = Di - Cei`
 - `Ud = SUM(V) - Di - Ch`
 
-The hinge of the whole lab: **covering a target sets `Di` to 0 but the attacker still pays `Cei`.** A failed attack is not free, which is what lets coverage make a target unattractive without ever being certain.
+The hinge of the whole lab: **covering a server sets `Di` to 0 but the attacker still pays `Cei`.** A failed attack is not free, which is what lets coverage make a server unattractive without ever being certain.
 
 ### Roles
 
@@ -262,12 +269,12 @@ The **defender is the Stackelberg leader**. They commit to a coverage distributi
 
 ### The maths, all verified against both whiteboard photos
 
-Both expectations are linear in that target's own coverage, which is what lets each be a single line:
+Both expectations are linear in that server's own coverage, which is what lets each be a single line:
 
 ```
-EUa(T1) = 6 - 8x1    EUd(T1) =  9 + 8x1
-EUa(T2) = 5 - 6x2    EUd(T2) = 11 + 6x2
-EUa(T3) = 3 - 4x3    EUd(T3) = 13 + 4x3
+EUa(S1) = 6 - 8x1    EUd(S1) =  9 + 8x1
+EUa(S2) = 5 - 6x2    EUd(S2) = 11 + 6x2
+EUa(S3) = 3 - 4x3    EUd(S3) = 13 + 4x3
 ```
 
 `BR(x) = argmax {6 - 8x1, 5 - 6x2, 3 - 4x3}`.
@@ -280,30 +287,85 @@ EUa(T3) = 3 - 4x3    EUd(T3) = 13 + 4x3
 
 | commitment | attacker takes | defender gets |
 |---|---|---|
-| best pure (cover T1) | T2 | 11 |
-| mixed by guesswork (0.5, 0.3, 0.2) | T2 | 12.8 |
-| mixed, optimized | T2 or T3 | **13.54** |
+| best pure (cover S1) | S2 | 11 |
+| mixed by guesswork (0.5, 0.3, 0.2) | S2 | 12.8 |
+| mixed, optimized | S2 or S3 | **13.54** |
 
 Nothing about the network changes between those rows. The entire gain comes from controlling what the attacker knows.
 
-**Whiteboard typo**: board 2 writes `EUd(T1) = 9 + 8(23/52) = 163/16 ~ 12.54`. It is `163/13`. The decimal is right, the fraction is not.
+**Whiteboard typo**: board 2 writes `EUd(S1) = 9 + 8(23/52) = 163/16 ~ 12.54`. It is `163/13`. The decimal is right, the fraction is not.
 
 ### Two things that are easy to get wrong
 
-**Strong Stackelberg tie-breaking.** At the optimum the attacker is indifferent across all three targets *by construction*, so "which target do they hit" has no answer without a stated convention. The lab uses **Strong Stackelberg**: an indifferent follower breaks the tie in the leader's favor, giving 13.54. This is justified in the Example rather than asserted: the defender could always shift a sliver of coverage to make one target strictly best, so 13.54 is a value they can approach arbitrarily closely.
+**Strong Stackelberg tie-breaking.** At the optimum the attacker is indifferent across all three servers *by construction*, so "which server do they hit" has no answer without a stated convention. The lab uses **Strong Stackelberg**: an indifferent follower breaks the tie in the leader's favor, giving 13.54. This is justified in the Example rather than asserted: the defender could always shift a sliver of coverage to make one server strictly best, so 13.54 is a value they can approach arbitrarily closely.
 
-This also means the professor's instruction that "the student should always be asked to predict which target the attacker would choose" cannot be applied at the optimum. Any future Practice must only ask for that prediction at non-optimal commitments.
+This also means the professor's instruction that "the student should always be asked to predict which server the attacker would choose" cannot be applied at the optimum. Any future Practice must only ask for that prediction at non-optimal commitments.
 
-**The equalizer is not always feasible.** When a target is unattractive enough its equalizing share comes out negative, and the right answer is to drop that target and re-solve on the rest. Measured over 20,000 random games: the equalizer is **infeasible 53% of the time**, and when it *is* feasible it is **never suboptimal** (0 counterexamples). So "equalize and you are done" is a sound rule exactly when all shares are non-negative. `equalizingCoverage` returns null rather than nonsense in that case, and `defenderOptimum` solves it properly. A Practice generator will need this as its gate.
+**The equalizer is not always feasible.** When a server is unattractive enough its equalizing share comes out negative, and the right answer is to drop that server and re-solve on the rest. Measured over 20,000 random games: the equalizer is **infeasible 53% of the time**, and when it *is* feasible it is **never suboptimal** (0 counterexamples). So "equalize and you are done" is a sound rule exactly when all shares are non-negative. `equalizingCoverage` returns null rather than nonsense in that case, and `defenderOptimum` solves it properly. A Practice generator will need this as its gate.
 
 ### Files
 
-- [stackelberg.ts](src/components/Lab4/stackelberg.ts): pure, no React. Game definition, payoffs, the line forms, `bestResponses`, `attackedTarget` (SSE), `equalizingCoverage`, and `defenderOptimum`, which finds the true optimum per-target rather than assuming the equalizer. Verified offline the way `gameTree.ts` was: every whiteboard number reproduced exactly, and `defenderOptimum` cross-checked against a brute-force sweep of the simplex that never exceeds it and converges on it as the grid tightens.
-- [TargetNetwork.tsx](src/components/Lab4/TargetNetwork.tsx): the SVG. Each target box carries a **coverage bar**, which is the component that matters: it turns `x = (0.44, 0.42, 0.13)` from three decimals into a picture, and it animates as the walkthrough steps between the three commitments.
+- [stackelberg.ts](src/components/Lab4/stackelberg.ts): pure, no React. Game definition, payoffs, the line forms, `bestResponses`, `attackedTarget` (SSE), `equalizingCoverage`, and `defenderOptimum`, which finds the true optimum per-server rather than assuming the equalizer. Verified offline the way `gameTree.ts` was: every whiteboard number reproduced exactly, and `defenderOptimum` cross-checked against a brute-force sweep of the simplex that never exceeds it and converges on it as the grid tightens.
+- [ServerNetwork.tsx](src/components/Lab4/ServerNetwork.tsx): the SVG. Each server box carries a **coverage bar**, which is the component that matters: it turns `x = (0.44, 0.42, 0.13)` from three decimals into a picture, and it animates as the walkthrough steps between the three commitments.
 - [ExampleLab4.tsx](src/components/Lab4/ExampleLab4.tsx): six pages in the Lab 1 and 2 frame (definition box, topic, question, Show Answer, arrows, finish screen). Every number in the prose is computed from the solver, never typed in, so the text cannot drift from the diagram.
 - [ExampleLab4.css](src/styles/ExampleLab4.css): amber `#f08c00` chrome. Attacker red and defender blue are kept identical to Lab 3 on purpose, so a student does not have to relearn them.
 
-Practice Lab 4 is a stub.
+
+### Practice: one long derivation as a transcript
+
+Practice Lab 4 is a **single scrolling conversation** between the attacker and the defender, three columns with the attacker on the left, the network in the middle and the defender on the right. The student is always the defender, matching the professor's brief.
+
+Unlike Lab 3's Practice, which showed one exchange at a time, the whole history stays on screen. Lab 4 is one derivation that builds on itself, so being able to scroll back to the line you derived four questions ago matters.
+
+**14 stages, 100 points**, in [practiceStages.ts](src/components/Lab4/practiceStages.ts):
+
+| stage | kind | pts |
+|---|---|---|
+| what the attacker gets on a covered server | choice | 5 |
+| `EUa` at each of the three servers | equation x3 | 8 each |
+| how the attacker picks between them | choice | 5 |
+| best response to the trial mix (50/30/20) | choice | 7 |
+| what happens if one server is strictly best | choice | 6 |
+| the third equation, `x1 + x2 + x3 = 1` | choice | 4 |
+| solve for the coverage, as percentages | triple | 15 |
+| what the defender keeps on a covered server | number | 4 |
+| `EUd` at each of the three servers | equation x3 | 7 each |
+| the defender's expected utility at the optimum | number | 9 |
+
+Verified across 3,000 generated games: weights always total 100, always 14 stages, a perfect run scores exactly 100, a blank run scores 0, and no stage ever renders `NaN` or `undefined`.
+
+**Who speaks.** The question bubble sits on the side of the player whose reasoning it concerns, so answering an attacker-side question means modeling the opponent, which is the skill. The student's reply always appears as a defender bubble, because the student is the defender.
+
+### Grading equations by meaning, not by string
+
+The same answer has many correct spellings, so [linearExpression.ts](src/components/Lab4/linearExpression.ts) reduces whatever is typed to a pair of numbers, the constant term and the coefficient, and compares those. A list of accepted strings per question would be endless and would still reject something reasonable.
+
+Accepted: `6-8x1`, `6 - 8x1`, `-8x1+6`, `6-8*x1`, `6-8x` (dropped subscript), `EUa(S1)=6-8x1`, unicode minus, decimals, and simple fractions like `23/52`. A trailing operator (`6-8x1+`) is accepted as an unambiguous typo.
+
+Rejected: the wrong variable (`6-8x2` when x1 was asked for), parentheses, two variables in a term, powers, and anything non-numeric. All of those are real mistakes rather than notation choices.
+
+Percentages are graded to two decimal places as the question asks, and accept either `27.27` or `0.2727`, since students flip between the two constantly. The decimal reading is only tried when the typed number is at most 1, so the two readings can never both be plausible.
+
+### Practice generation
+
+`generatePracticeGame` is rejection sampling over server values 5 to 12, exploit costs 1 to 4, and `Ch` 1 to 3. The payoff lines collapse to something very simple, which is worth knowing when reading the code: with value `V` and cost `C`, `EUa = (V - C) - V*x` and `EUd = (SUM(V) - V - Ch) + V*x`. The attacker's slope is just `-V`.
+
+`describeUnusablePractice` is the gate and returns the reason rather than a bare boolean:
+
+- Server values must be **distinct**, since equal values give identical equations.
+- No server may cost more to reach than it is worth.
+- The trial mix must have a **unique** best response, or that question has no single answer.
+- The equalizer must be feasible (this is the constraint that rejects most candidates).
+- No share may be below 4% or above 90%, and no two shares within 2 points of each other, so the three answers are worth asking for separately.
+- Optimizing must beat the trial mix by at least 0.05, or the lab's punchline does not land.
+
+Measured over 200,000 candidates: **42.15% acceptance**. Rejection reasons: duplicate server values 34.4%, equalizer infeasible 12.8%, share at an extreme 5.6%, shares too close 4.2%, trial mix ties 0.9%. Across 5,000 generated games there were zero problems, all three servers occur as the trial-mix best response, and the gain from optimizing ranges 0.08 to 6.85 with a median of 2.63.
+
+### Two giveaways that were caught and removed
+
+An early version printed the expected payoff beside each option in the best-response question (`"S2, for 6.7"`), which let the student pick the largest number without evaluating the lines they had just derived. The options are bare server names now.
+
+The covered-payoff question originally stated both `SUM(V)` and `Ch` in the prompt, turning it into a subtraction prompt rather than a question about the damage going to zero. The numbers moved to the panel beside the network, where the student has to go and find them.
 
 ### Example structure
 
@@ -311,13 +373,13 @@ An intro roadmap, then seven pages and 21 steps.
 
 **Intro** defines what a Stackelberg game is, defines expected utility with a worked micro-example, and lists the seven pages with one line each. It stays reachable: pressing back from page 1 returns to it.
 
-1. **The network and the payoffs**: read the diagram, then both formulas worked on T2 open and T2 covered.
+1. **The network and the payoffs**: read the diagram, then both formulas worked on S2 open and S2 covered.
 2. **Commitment**: leader and follower, all three pure commitments, lands on 11.
-3. **Why a certain defense fails**: the bridge that makes mixing feel necessary rather than arbitrary. Shows that under *every* pure commitment the honeypot catches nobody, so a certain commitment does not defend a target, it redirects the attacker, and with three targets and one honeypot there is always somewhere to redirect them to. Then the fix: what the defender needs is not more coverage but doubt, demonstrated by dropping the attacker's T2 payoff from 5 to 3.2 with nothing but a 30% chance of being covered.
-4. **Setting up the mixed strategy**: `x1 = P(HP @ T1)` notation straight off the board, the `x1 + x2 + x3 = 1` budget, then each `EUa` derived from its protected/unprotected cases in a two-row table before being tidied to `6 - 8x1`. Ends with the argmax rule and the interactive sliders.
-5. **Trying a mix**: runs `(0.5, 0.3, 0.2)` through the machinery, gets `2 / 3.2 / 2.2`, best response T2, defender 12.8. The final step reads the three numbers back and asks what is being wasted, which sets up the optimization.
+3. **Why a certain defense fails**: the bridge that makes mixing feel necessary rather than arbitrary. Shows that under *every* pure commitment the honeypot catches nobody, so a certain commitment does not defend a server, it redirects the attacker, and with three servers and one honeypot there is always somewhere to redirect them to. Then the fix: what the defender needs is not more coverage but doubt, demonstrated by dropping the attacker's S2 payoff from 5 to 3.2 with nothing but a 30% chance of being covered.
+4. **Setting up the mixed strategy**: `x1 = P(HP @ S1)` notation straight off the board, the `x1 + x2 + x3 = 1` budget, then each `EUa` derived from its protected/unprotected cases in a two-row table before being tidied to `6 - 8x1`. Ends with the argmax rule and the interactive sliders.
+5. **Trying a mix**: runs `(0.5, 0.3, 0.2)` through the machinery, gets `2 / 3.2 / 2.2`, best response S2, defender 12.8. The final step reads the three numbers back and asks what is being wasted, which sets up the optimization.
 6. **Optimizing, make the attacker indifferent**: the condition, each `xi` in terms of `v`, the multiply-through-by-24 algebra line by line, `v = 32/13`, then substitution back with a guess-versus-optimized table.
-7. **Your expected utility, tuned against untuned**: `EUd` derived per target, evaluated at the optimum, Strong Stackelberg tie-breaking, and both ladders.
+7. **Your expected utility, tuned against untuned**: `EUd` derived per server, evaluated at the optimum, Strong Stackelberg tie-breaking, and both ladders.
 
 **`(0.5, 0.3, 0.2)` is a given, not a result.** On the whiteboard it sits *above* the solve, as a worked illustration. Deriving the probabilities properly (three `EUa` lines, argmax, `sum(xi) = 1`) produces `(44.2%, 42.3%, 13.5%)`, not 50/30/20, and no natural weighting rule gives 50/30/20 either: proportional to value gives 44.4/33.3/22.2, proportional to value minus cost gives 42.9/35.7/21.4. The Example therefore presents it explicitly as a trial mix whose job is to exercise the machinery before anything is optimized.
 
