@@ -7,6 +7,8 @@ import { Lab1 } from "./components/Lab1/Lab1";
 import Lab2 from "./components/Lab2/Lab2";
 import Lab3 from "./components/Lab3/Lab3";
 import Lab4 from "./components/Lab4/Lab4";
+import Lab5 from "./components/Lab5/Lab5";
+import Lab6 from "./components/Lab6/Lab6";
 function App() {
   //const [count, setCount] = useState(0)
 
@@ -20,10 +22,10 @@ function App() {
           <Route path="/lab2" element={<Lab2 />} />
           <Route path="/lab3" element={<Lab3 />} />
           <Route path="/lab4" element={<Lab4 />} />
-          {/* Labs 5 to 7 are not built yet. Until they are, Home and the
-              sidebar deliberately do not link to them.
           <Route path="/lab5" element={<Lab5 />} />
           <Route path="/lab6" element={<Lab6 />} />
+          {/* Lab 7 is not built yet. Until it is, Home and the sidebar
+              deliberately do not link to it.
           <Route path="/lab7" element={<Lab7 />} /> */}
         </Route>
       </Routes>

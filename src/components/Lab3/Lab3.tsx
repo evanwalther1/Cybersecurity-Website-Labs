@@ -7,11 +7,11 @@ import LabLayout from "../LabLayout";
 import { LabInternalLayout } from "../LabInternalLayout";
 
 const labProps = {
-  title: "Lab 3: Extensive-Form Game",
+  title: "Extensive-Form Game",
   objectives: [
     "Understand sequential games",
     "Understand traversing a game tree to find payoffs",
-    "Learn how to find the SPNE (Sub-game Perfect Nash Equilibrium",
+    "Learn how to find the Sub-game Perfect Nash Equilibrium",
     "Use backward induction to make rational decisions",
   ],
   points: 100,

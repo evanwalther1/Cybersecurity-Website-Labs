@@ -1,0 +1,970 @@
+/* Lab 6: Bayesian games.
+ *
+ * Only the network exists so far. The rest of the lab is not designed yet,
+ * so this file deliberately holds nothing but the diagram's styling and the
+ * frame it sits in.
+ *
+ * Attacker red and defender blue are kept identical to Labs 3, 4 and 5 on
+ * purpose, so a student never has to relearn which side is which.
+ */
+
+/* Colour variables only.
+ *
+ * This class sits on the SAME element as .lab-panel-columns, the shared
+ * two-column frame every lab uses. That frame is `display: flex` relying on
+ * the default row direction, so any layout property declared here lands on
+ * the frame itself. An earlier version set `flex-direction: column` and,
+ * because this stylesheet is imported after LabPanel.css at equal
+ * specificity, it won: the diagram stacked on top of the text instead of
+ * sitting beside it. Do not put layout on .lab6. */
+.lab6 {
+  /* Light rose.
+   *
+   * Pink is hemmed in on both sides here and this is the lane between them:
+   * Lab 3's accent is magenta at hue 325 and the attacker red is at hue 0,
+   * so anything pinker collides with Lab 3 and anything redder collides with
+   * the attacker. 339 is about as far from both as pink gets, 21 degrees
+   * clear of the attacker and 14 of Lab 3.
+   *
+   * It scores 3.73:1 on white, which is below the 4.5 wanted for small text.
+   * Everything the accent touches is bold, and the smallest of them is the
+   * 0.82rem monospace key in the variables panel; if that ever reads washed
+   * out, #d6336c is the same hue one step deeper at 4.62:1.
+   *
+   * Must stay in step with accentColor in Lab6.tsx and accent in
+   * data/labs.ts. */
+  --lab6-accent: #e64980;
+  /* Fixed across Labs 3 to 6: a student should never relearn which side is
+     which, so these two do not move for any reason. */
+  --lab6-attacker: #e03131;
+  --lab6-defender: #1c7ed6;
+  /*
+   * Red, as the whiteboard draws the IDS regions. Deliberately much darker
+   * than the attacker red: the two sit at the same hue, so lightness is the
+   * only thing keeping a dashed sensor outline from reading as the attacker.
+   * 8.61:1 against 4.51:1 on white, which is a 1.91x separation.
+   */
+  --lab6-sensor: #99110c;
+}
+
+.lab6-network {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+/* ------------------------------------------------------------- the graph -- */
+
+.lab6-edge line {
+  stroke: color-mix(in srgb, var(--cui-body-color, #212529) 48%, transparent);
+  stroke-width: 2;
+}
+
+.lab6-edge text {
+  font-size: 12px;
+  font-weight: 600;
+  text-anchor: middle;
+  fill: var(--cui-body-color, #212529);
+  /* Halo, so a label stays readable where it crosses its own edge. Same
+     trick as Lab 4's exploit-cost labels. */
+  stroke: var(--cui-body-bg, #fff);
+  stroke-width: 3px;
+  paint-order: stroke fill;
+}
+
+.lab6-node rect {
+  fill: var(--cui-tertiary-bg, #f1f3f5);
+  stroke: color-mix(in srgb, var(--cui-body-color, #212529) 45%, transparent);
+  stroke-width: 1.8;
+}
+
+.lab6-node text {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-anchor: middle;
+  fill: var(--cui-body-color, #212529);
+}
+
+/* The one node that is not part of the defender's estate. */
+.lab6-node.is-attacker rect {
+  stroke: var(--lab6-attacker);
+  stroke-width: 2.2;
+  fill: color-mix(
+    in srgb,
+    var(--lab6-attacker) 10%,
+    var(--cui-tertiary-bg, #f1f3f5)
+  );
+}
+
+.lab6-node.is-attacker text {
+  fill: var(--lab6-attacker);
+  font-weight: 700;
+}
+
+.lab6-target circle {
+  fill: var(--cui-tertiary-bg, #f1f3f5);
+  stroke: var(--lab6-accent);
+  stroke-width: 2.4;
+}
+
+.lab6-target-id {
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--cui-body-color, #212529);
+}
+
+/* The sensors. Dashed, because they are an overlay on the network rather
+   than a part of it, and dashing says that without needing a legend. */
+.lab6-sensor rect {
+  fill: color-mix(in srgb, var(--lab6-sensor) 5%, transparent);
+  stroke: var(--lab6-sensor);
+  stroke-width: 1.6;
+  stroke-dasharray: 7 5;
+}
+
+/* Labels sit to the right of the stacked regions and read horizontally, so
+   they anchor to the start. Under the landscape layout they were centred
+   beneath each region instead. */
+.lab6-sensor text {
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-anchor: start;
+  fill: var(--lab6-sensor);
+}
+
+/* ======================================================= the walkthrough === */
+
+.lab-panel-columns.lab6 .lab-panel-dynamic {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The left column.
+ *
+ * Labs 1 to 5 get the base layout for this element from `.static-lab` in
+ * PayoffMatrix.css, which they pick up by importing ExampleLab1.css. Lab 6
+ * has no payoff matrix, and importing a matrix stylesheet to borrow one flex
+ * rule would drag a lot of unrelated styling in with it, so the column is
+ * declared in full here instead.
+ *
+ * height and min-height are the load-bearing pair: .lab-panel-static is a
+ * flex item, and without them the SVG inside has nothing to measure against
+ * and collapses. */
+.lab6-static {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.lab6-dynamic {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.lab6-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.lab6-topic {
+  margin: 0.15rem 0 0.7rem;
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: var(--lab6-accent);
+}
+
+.lab6-body p {
+  line-height: 1.6;
+}
+
+.lab6-body code {
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.2rem;
+  background: var(--cui-tertiary-bg);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+/* The sentence a step is really making. At most one per step. */
+.lab6-point {
+  padding: 0.5rem 0.8rem;
+  border-left: 3px solid var(--lab6-accent);
+  background: color-mix(in srgb, var(--lab6-accent) 8%, var(--cui-body-bg));
+  border-radius: 0 0.35rem 0.35rem 0;
+  font-weight: 600;
+}
+
+.lab6-warn {
+  display: flex;
+  gap: 0.55rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--lab6-sensor) 9%, var(--cui-body-bg));
+  border: 1px solid color-mix(in srgb, var(--lab6-sensor) 35%, transparent);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.lab6-warn svg {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+  color: var(--lab6-sensor);
+}
+
+.lab6-quiz {
+  margin: 0.7rem 0;
+  padding: 0.7rem 0.95rem;
+  border-left: 4px solid var(--lab6-accent);
+  background: var(--cui-tertiary-bg);
+  border-radius: 0 0.4rem 0.4rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Same story as .lab6-static: `.dynamic-nav`'s base rule lives in
+   ExampleLab1.css, which this lab does not import, so the row is declared
+   outright rather than half-inherited. */
+/* Two arrows, centred, exactly like Labs 1 to 5. `.dynamic-nav`'s base rule
+   lives in ExampleLab1.css, which this lab does not import, so the row is
+   declared outright rather than half-inherited. */
+.lab6-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding-top: 1rem;
+}
+
+.lab6-legendbar {
+  display: flex;
+  justify-content: center;
+  gap: 1.4rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------- tables --- */
+
+.lab6-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.7rem 0;
+  font-size: 0.85rem;
+}
+
+.lab6-table th,
+.lab6-table td {
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  padding: 0.35rem 0.5rem;
+  text-align: center;
+}
+
+.lab6-table thead th {
+  background: var(--cui-tertiary-bg);
+  font-weight: 700;
+}
+
+.lab6-table thead th span {
+  font-weight: 500;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab6-table tbody th {
+  text-align: right;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--lab6-accent) 7%, var(--cui-body-bg));
+}
+
+.lab6-table.is-wide td {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.lab6-table tr.is-marked td,
+.lab6-table tr.is-best td {
+  background: color-mix(in srgb, var(--lab6-accent) 14%, var(--cui-body-bg));
+  font-weight: 700;
+}
+
+.lab6-table td.is-good {
+  background: color-mix(in srgb, #2f9e44 13%, var(--cui-body-bg));
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------- formulas --- */
+
+.lab6-formula {
+  margin: 0.7rem 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.4rem;
+  background: var(--cui-tertiary-bg);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.98rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* A derivation, one line per step, rather than one long expression. */
+.lab6-formula.is-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+  font-size: 0.86rem;
+}
+
+.lab6-formula.is-stack span:nth-child(odd) {
+  font-family: var(--cui-body-font-family, system-ui);
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab6-formula.is-stack .is-total {
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--cui-border-color, #dcdfe4);
+  font-family: ui-monospace, Consolas, monospace !important;
+  font-weight: 800 !important;
+  font-size: 0.95rem !important;
+  color: var(--lab6-accent) !important;
+}
+
+/* Bayes drawn as an actual fraction, because the shape is half the
+   explanation: everyone on top who matches, everyone at all on the bottom. */
+.lab6-bayes {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0.8rem 0;
+  padding: 0.7rem;
+  border-radius: 0.45rem;
+  background: var(--cui-tertiary-bg);
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.lab6-bayes-lhs {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.lab6-bayes-frac {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.lab6-bayes-frac .is-num {
+  padding: 0 0.5rem 0.2rem;
+  font-size: 0.88rem;
+}
+
+.lab6-bayes-frac .is-den {
+  padding: 0.2rem 0.5rem 0;
+  border-top: 2px solid var(--cui-body-color, #212529);
+  font-size: 0.88rem;
+}
+
+.lab6-legend {
+  margin: 0.4rem 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.lab6-legend code {
+  font-weight: 700;
+}
+
+/* --------------------------------------------------------------- belief --- */
+
+.lab6-belief {
+  margin: 0.45rem 0;
+}
+
+.lab6-belief-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab6-belief-bar {
+  display: flex;
+  height: 1.6rem;
+  margin-top: 0.15rem;
+  border-radius: 0.3rem;
+  overflow: hidden;
+}
+
+.lab6-belief-bar i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #fff;
+  /* Animated so the ladder of updates reads as one belief moving rather than
+     as three unrelated pictures. */
+  transition: width 0.4s ease;
+}
+
+.lab6-belief-bar .is-h {
+  background: var(--lab6-attacker);
+}
+
+.lab6-belief-bar .is-l {
+  background: color-mix(in srgb, var(--lab6-defender) 70%, #000);
+}
+
+.lab6-beliefrow {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.7rem 0;
+}
+
+.lab6-beliefrow > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.45rem 0.3rem;
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.4rem;
+}
+
+.lab6-beliefrow span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab6-beliefrow strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--lab6-accent);
+}
+
+.lab6-beliefrow.is-big strong {
+  font-size: 1.4rem;
+}
+
+/* ----------------------------------------------------------- the counts --- */
+
+.lab6-count {
+  margin: 0.7rem 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.5rem;
+  background: var(--cui-tertiary-bg);
+  text-align: center;
+}
+
+.lab6-count-top {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.lab6-count-split {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.35rem 0;
+}
+
+.lab6-count-split > div {
+  flex: 1;
+  padding: 0.35rem;
+  border-radius: 0.35rem;
+  font-size: 0.78rem;
+}
+
+.lab6-count-split .is-h {
+  background: color-mix(in srgb, var(--lab6-attacker) 14%, var(--cui-body-bg));
+}
+
+.lab6-count-split .is-l {
+  background: color-mix(in srgb, var(--lab6-defender) 14%, var(--cui-body-bg));
+}
+
+.lab6-count-split strong {
+  display: block;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.lab6-count-arrow {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab6-count-result {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--cui-border-color, #dcdfe4);
+  font-size: 0.86rem;
+}
+
+.lab6-count-result strong {
+  color: var(--lab6-accent);
+  font-size: 1rem;
+}
+
+/* ------------------------------------------------------------ the flip --- */
+
+.lab6-flip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin: 0.7rem 0;
+}
+
+.lab6-flip > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.45rem;
+  text-align: center;
+}
+
+.lab6-flip > div.is-want {
+  border-color: var(--lab6-accent);
+  border-width: 2px;
+  background: color-mix(in srgb, var(--lab6-accent) 8%, var(--cui-body-bg));
+}
+
+.lab6-flip span {
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab6-flip code {
+  font-size: 0.95rem;
+  font-weight: 700;
+  background: none !important;
+}
+
+.lab6-flip em {
+  font-size: 0.74rem;
+  font-style: normal;
+  line-height: 1.4;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab6-flip strong {
+  font-size: 1.3rem;
+  color: var(--lab6-accent);
+}
+
+/* ------------------------------------------------- knows / sensors / etc --- */
+
+.lab6-compare,
+.lab6-ladder {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin: 0.7rem 0;
+}
+
+.lab6-compare > div,
+.lab6-ladder > div {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.45rem;
+}
+
+/* Body size, matching every other paragraph in the lab. These used to be
+   0.82rem, which made the one screen that is nothing but prose read as
+   smaller print than the screens around it. */
+.lab6-alertgroup p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.lab6-alertgroup {
+  margin: 0.9rem 0;
+}
+
+.lab6-alertgroup p + p {
+  margin-top: 0.45rem;
+}
+
+.lab6-compare span,
+.lab6-ladder span {
+  display: block;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab6-compare em {
+  display: block;
+  font-style: normal;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
+.lab6-compare .is-now,
+.lab6-ladder .is-best {
+  border-color: var(--lab6-accent);
+  background: color-mix(in srgb, var(--lab6-accent) 8%, var(--cui-body-bg));
+}
+
+.lab6-ladder > div {
+  text-align: center;
+}
+
+.lab6-ladder strong {
+  display: block;
+  font-size: 0.95rem;
+  margin: 0.15rem 0;
+}
+
+.lab6-ladder em {
+  font-style: normal;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--lab6-accent);
+}
+
+/* ---------------------------------------------- diagram states for steps --- */
+
+/* Focus mode dims the parts of the network a step is not about. */
+.lab6-network.is-focused .lab6-node,
+.lab6-network.is-focused .lab6-target,
+.lab6-network.is-focused .lab6-edge {
+  opacity: 0.35;
+  transition: opacity 0.3s ease;
+}
+
+.lab6-sensor rect,
+.lab6-sensor text {
+  transition:
+    opacity 0.3s ease,
+    stroke-width 0.2s ease;
+}
+
+.lab6-network.is-focused .lab6-sensor:not(.is-live) {
+  opacity: 0.25;
+}
+
+.lab6-sensor.is-live rect {
+  stroke-width: 2.6;
+  fill: color-mix(in srgb, var(--lab6-sensor) 13%, transparent);
+}
+
+.lab6-target.is-guarded circle {
+  stroke: var(--lab6-defender);
+  stroke-width: 4;
+  fill: color-mix(
+    in srgb,
+    var(--lab6-defender) 18%,
+    var(--cui-tertiary-bg, #f1f3f5)
+  );
+}
+
+.lab6-target-hp {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  text-anchor: middle;
+  fill: var(--lab6-defender);
+}
+
+/* --------------------------------------------------------- the variables --- */
+/*
+ * Server values and the two constants, pinned to the top left of the
+ * diagram, the way Labs 2, 4 and 5 all do it. Keeping them out of the
+ * picture means the diagram carries structure and this carries numbers, and
+ * it is also what lets the formulas under the diagram stay in their general
+ * form instead of having 17 substituted into them.
+ */
+.lab6-variables {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 5.5rem;
+  padding: 0.55rem 0.8rem;
+  background: color-mix(in srgb, var(--lab6-accent) 8%, var(--cui-body-bg));
+  border: 1.5px solid color-mix(in srgb, var(--lab6-accent) 38%, transparent);
+  border-radius: 0.5rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.lab6-variables-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+/* Separates the per-server values from the constants below them. */
+.lab6-variables-row.is-divider {
+  margin-top: 0.2rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--cui-border-color, #dcdfe4);
+}
+
+.lab6-variables-key {
+  font-weight: 700;
+  color: var(--lab6-accent);
+}
+
+.lab6-variables-val {
+  color: var(--cui-body-color);
+}
+
+/* ------------------------------------------------------------- new bits --- */
+
+.lab6-definehead {
+  margin-top: 1.1rem !important;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--cui-border-color, #dcdfe4);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------- the finish screen --- */
+/*
+ * .dynamic-finish and .concepts-learned come from ExampleLab1.css, which
+ * this lab imports so its closing screen is literally the same component as
+ * every other lab's rather than a lookalike. Lab 1's blue is hardcoded in
+ * there, so the accent is re-pointed here, exactly as Lab 4 does it.
+ */
+.lab6-dynamic .concepts-learned-title {
+  color: var(--lab6-accent);
+}
+
+.lab6-dynamic .dynamic-finish {
+  padding-top: 1rem;
+}
+
+/* ------------------------------------------------------- subheads, roadmap --- */
+
+/* A second-level heading inside a screen, for the screens that do two
+   things. Sized between the screen title and the body so the hierarchy is
+   visible without introducing a third type size. */
+.lab6-sub {
+  margin: 1.2rem 0 0.4rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--cui-border-color, #dcdfe4);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--cui-body-color);
+}
+
+/* The first subhead on a screen does not need a rule above it when it
+   follows a callout that already has its own edge. */
+.lab6-alertgroup:first-of-type .lab6-sub {
+  margin-top: 0.4rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+.lab6-roadmap {
+  margin: 0.5rem 0 0;
+  padding-left: 1.3rem;
+  line-height: 1.65;
+}
+
+.lab6-roadmap li + li {
+  margin-top: 0.35rem;
+}
+
+/* The type table's first column held "High skill" and "Low skill", which made
+   it wider than the three data columns put together. Short labels plus a
+   fixed width keep the numbers where the eye expects them. */
+.lab6-table.is-types {
+  table-layout: fixed;
+}
+
+.lab6-table.is-types tbody th {
+  width: 6rem;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------ the definition list --- */
+/*
+ * Seven definitions used to be seven bordered cards, which was mostly box
+ * for not much text. A plain list says the same thing with no furniture:
+ * term, dash, sentence. Only the term is marked up, because it is the only
+ * part you can click.
+ */
+
+.lab6-deflist {
+  margin: 0.6rem 0 0;
+}
+
+.lab6-deflist > div {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+}
+
+.lab6-deflist > div + div {
+  border-top: 1px solid var(--cui-border-color, #dcdfe4);
+}
+
+.lab6-deflist dt {
+  flex: 0 0 auto;
+}
+
+.lab6-deflist dd {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+/* Highlighted rather than underlined: the same treatment as the peek buttons
+   in Labs 3 and 5, so a student who met either already knows it opens
+   something rather than navigating away. */
+.lab6-defterm {
+  padding: 0.1rem 0.4rem;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--lab6-accent);
+  background: color-mix(in srgb, var(--lab6-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lab6-accent) 35%, transparent);
+  border-radius: 0.3rem;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.lab6-defterm:hover,
+.lab6-defterm.is-open {
+  background: color-mix(in srgb, var(--lab6-accent) 26%, transparent);
+  border-color: var(--lab6-accent);
+}
+
+/* ------------------------------------------------------------- the overlay --- */
+/*
+ * Fixed, not absolute. The list lives inside .lab6-scroll, which is
+ * overflow-y: auto, so an absolutely positioned window would be clipped at
+ * the scroll edge and would drift as the text scrolled under it. Fixed
+ * escapes both, and there is no transform, filter or perspective on any
+ * ancestor to turn it back into an absolute one.
+ *
+ * The lab window itself is a stacking context at z-index 2000, so this only
+ * has to clear the things inside it.
+ */
+.lab6-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.lab6-overlay-box {
+  width: min(30rem, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 1rem 1.2rem 1.2rem;
+  background: var(--cui-body-bg);
+  border: 1px solid color-mix(in srgb, var(--lab6-accent) 40%, transparent);
+  border-top: 4px solid var(--lab6-accent);
+  border-radius: 0.6rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.lab6-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.lab6-overlay-head span {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--lab6-accent);
+}
+
+.lab6-overlay-head button {
+  display: inline-flex;
+  padding: 0.2rem;
+  cursor: pointer;
+  color: var(--cui-secondary-color, #6c757d);
+  background: none;
+  border: none;
+}
+
+.lab6-overlay-head button svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.lab6-overlay-what {
+  margin: 0 0 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.lab6-overlay-like,
+.lab6-overlay-here {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab6-overlay-here {
+  margin-top: 0.7rem !important;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--cui-border-color, #dcdfe4);
+}
+
+.lab6-overlay-like i,
+.lab6-overlay-here i {
+  display: block;
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--lab6-accent);
+}

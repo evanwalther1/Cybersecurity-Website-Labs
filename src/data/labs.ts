@@ -4,7 +4,7 @@ import {
   cilChartLine,
   cilGraph,
   cilShieldAlt,
-  cilLockLocked,
+  cilBell,
   cilBug,
 } from "@coreui/icons";
 
@@ -87,17 +87,23 @@ export const LABS: Lab[] = [
   },
   {
     number: 5,
-    title: "Lab 5",
-    description: "Concepts for this lab are still being defined.",
+    title: "Lab 5: Repeated Game",
+    subtitle: "Strategies over time",
+    description:
+      "Repeated play, attack patterns, trigger strategies, the discount factor, and when adapting beats staying unpredictable.",
     icon: cilShieldAlt,
-    sidebarPath: null,
+    accent: "#7048e8",
+    sidebarPath: "/lab5",
   },
   {
     number: 6,
-    title: "Lab 6",
-    description: "Concepts for this lab are still being defined.",
-    icon: cilLockLocked,
-    sidebarPath: null,
+    title: "Lab 6: Bayesian Game",
+    subtitle: "Incomplete information",
+    description:
+      "Player types, prior and posterior beliefs, Bayes' rule, unreliable sensors, and choosing a defense under uncertainty.",
+    icon: cilBell,
+    accent: "#e64980",
+    sidebarPath: "/lab6",
   },
   {
     number: 7,

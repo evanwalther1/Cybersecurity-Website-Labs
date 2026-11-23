@@ -7,7 +7,7 @@ import LabLayout from "../LabLayout";
 import { LabInternalLayout } from "../LabInternalLayout";
 
 const labProps = {
-  title: "Lab 2: Non Zero-Sum Game (Normal Form)",
+  title: "Non Zero-Sum Game (Normal Form)",
   objectives: [
     "Understand how a non-zero-sum game differs from a zero-sum game.",
     "Account for honeypot cost (Ch) and exploit cost (Ce) in each player's payoff.",

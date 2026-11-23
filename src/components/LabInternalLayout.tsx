@@ -19,10 +19,14 @@ import { ExampleLab1 } from "./Lab1/ExampleLab1";
 import { ExampleLab2 } from "./Lab2/ExampleLab2";
 import { ExampleLab3 } from "./Lab3/ExampleLab3";
 import { ExampleLab4 } from "./Lab4/ExampleLab4";
+import { ExampleLab5 } from "./Lab5/ExampleLab5";
+import { ExampleLab6 } from "./Lab6/ExampleLab6";
 import { PracticeLab1 } from "./Lab1/PracticeLab1";
 import { PracticeLab2 } from "./Lab2/PracticeLab2";
 import { PracticeLab3 } from "./Lab3/PracticeLab3";
 import { PracticeLab4 } from "./Lab4/PracticeLab4";
+import { PracticeLab5 } from "./Lab5/PracticeLab5";
+import { PracticeLab6 } from "./Lab6/PracticeLab6";
 import { useState } from "react";
 import type { ComponentType } from "react";
 import type { LabResult } from "../types/labResult";
@@ -45,6 +49,8 @@ const LAB_COMPONENTS: Record<
   2: { Example: ExampleLab2, Practice: PracticeLab2 },
   3: { Example: ExampleLab3, Practice: PracticeLab3 },
   4: { Example: ExampleLab4, Practice: PracticeLab4 },
+  5: { Example: ExampleLab5, Practice: PracticeLab5 },
+  6: { Example: ExampleLab6, Practice: PracticeLab6 },
 };
 
 export const LabInternalLayout = ({

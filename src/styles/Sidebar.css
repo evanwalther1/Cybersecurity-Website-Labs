@@ -3,6 +3,27 @@
   width: auto;
 }
 
+/* Wide enough for the longest lab title, which is "Lab 3: Extensive-Form
+   Game". The default 16rem wraps it onto a second line, and a nav item that
+   is two lines tall while its neighbours are one reads as broken rather than
+   as emphasis.
+   This only changes the UNFOLDED width. The sidebar is `unfoldable`, so it
+   sits at --cui-sidebar-narrow-width until hovered, and Layout.css offsets
+   the page by that narrow value. Widening this therefore costs no horizontal
+   space on the page: the expanded sidebar overlays it. */
+.app-sidebar {
+  --cui-sidebar-width: 18rem;
+}
+
+/* Belt and braces with the width above. If a later lab gets a longer title
+   than the sidebar can hold, clipping it is a smaller problem than a ragged
+   two-line item, and the ellipsis says plainly that there is more. */
+.app-sidebar .nav-link {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Each lab nav link carries its own --lab-accent inline (see Sidebar.tsx),
    set from data/labs.ts. Everything below reads that one value, so a lab's
    color is never written down in this file. */

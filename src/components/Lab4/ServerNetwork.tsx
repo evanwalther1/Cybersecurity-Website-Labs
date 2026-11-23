@@ -32,6 +32,16 @@ export interface ServerNetworkProps {
   attacked?: number | null;
   /** server the current step is talking about; gets an accent ring. */
   highlight?: number | null;
+  /**
+   * Where the honeypot actually sits this round.
+   *
+   * Lab 4 never needs this: there the defender commits to probabilities and
+   * the realized position is deliberately hidden from the attacker, so the
+   * bars are the whole story. Lab 5 replays the game round by round with the
+   * placement revealed afterwards, so the position has to be drawable. Left
+   * optional and defaulting to null, which is exactly Lab 4's behaviour.
+   */
+  defended?: number | null;
 }
 
 export const ServerNetwork = ({
@@ -39,6 +49,7 @@ export const ServerNetwork = ({
   coverage,
   attacked = null,
   highlight = null,
+  defended = null,
 }: ServerNetworkProps) => {
   const n = game.servers.length;
   // Evenly spaced across the full width, so the entry node is centered over them
@@ -58,10 +69,17 @@ export const ServerNetwork = ({
     >
       {game.servers.map((server, i) => {
         const isHit = attacked === i;
+        const caught = isHit && defended === i;
         return (
           <g
             key={`edge-${server.id}`}
-            className={`lab4-edge ${isHit ? "is-attacked" : ""}`}
+            className={[
+              "lab4-edge",
+              isHit ? "is-attacked" : "",
+              caught ? "is-caught" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
           >
             <line
               x1={entryX}
@@ -92,9 +110,15 @@ export const ServerNetwork = ({
         const x = xs[i];
         const share = coverage?.[i];
         const isHit = attacked === i;
+        const isGuarded = defended === i;
+        const caught = isHit && isGuarded;
+        // Anything below the name pushes it up out of the middle of the box.
+        const stacked = share !== undefined || isGuarded;
         const classes = [
           "lab4-server",
           isHit ? "is-attacked" : "",
+          isGuarded ? "is-defended" : "",
+          caught ? "is-caught" : "",
           highlight === i ? "is-highlit" : "",
         ]
           .filter(Boolean)
@@ -115,7 +139,7 @@ export const ServerNetwork = ({
             <text
               className="lab4-server-id"
               x={x}
-              y={share === undefined ? boxMid + 6 : BOX_TOP + 30}
+              y={stacked ? BOX_TOP + 30 : boxMid + 6}
             >
               {server.id}
             </text>
@@ -146,9 +170,22 @@ export const ServerNetwork = ({
               </>
             )}
 
+            {/* Only drawn when there is no coverage bar to collide with. With
+                bars present (Randomized Defense) the dashed box outline from
+                .is-defended carries the same information without crowding. */}
+            {isGuarded && share === undefined && (
+              <text className="lab4-server-pot" x={x} y={boxMid + 20}>
+                honeypot
+              </text>
+            )}
+
             {isHit && (
-              <text className="lab4-server-hit" x={x} y={BOX_TOP - 10}>
-                attacked
+              <text
+                className={`lab4-server-hit ${caught ? "is-caught" : ""}`}
+                x={x}
+                y={BOX_TOP - 10}
+              >
+                {caught ? "caught" : "attacked"}
               </text>
             )}
           </g>

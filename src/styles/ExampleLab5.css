@@ -1,0 +1,973 @@
+/* Lab 5: repeated games.
+ *
+ * Three layouts in one tab, which is why this file is larger than the other
+ * Example stylesheets. The walkthrough reuses the Lab 1 to 4 two-column frame;
+ * the picker and the match each take the whole panel and share nothing with it
+ * but the color variables.
+ *
+ * The network, the server boxes and the player colors all come from
+ * ExampleLab4.css, which this lab imports alongside this file. Lab 5 is the
+ * same game as Lab 4 played repeatedly, so it draws the same diagram.
+ */
+
+.lab5,
+.lab5-full {
+  --lab5-accent: #7048e8;
+  /* ServerNetwork and the variables panel are shared with Lab 4 and read
+     --lab4-accent for the entry node, the highlight ring and the panel's
+     border and keys. Redefining it here repaints all of them in Lab 5's
+     purple from one line; left alone the diagram stays amber and reads as a
+     piece of Lab 4 that wandered in. */
+  --lab4-accent: var(--lab5-accent);
+  /* Attacker red and defender blue are deliberately identical to Labs 3 and 4.
+     A student should never have to relearn which side is which. */
+  --lab4-attacker: #e03131;
+  --lab4-defender: #1c7ed6;
+}
+
+/* The shared panel is plain grey, which disappears against the diagram. A
+   wash of the lab accent makes it read as a key rather than as empty chrome. */
+.lab5 .lab4-variables {
+  background: color-mix(in srgb, var(--lab5-accent) 9%, var(--cui-body-bg));
+  border-width: 1.5px;
+}
+
+/* ====================================================== PHASE 1: walkthrough */
+
+.lab-panel-columns.lab5 .lab-panel-dynamic {
+  display: flex;
+  flex-direction: column;
+}
+
+.lab5-dynamic {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.lab5-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.4rem;
+}
+
+/* The lab-wide accent is Lab 1's blue in the shared stylesheet, so the pieces
+   that carry a lab's identity are re-pointed here the same way Lab 4 does. */
+.lab5-dynamic .dynamic-topic {
+  color: var(--lab5-accent);
+}
+
+.lab5-body p {
+  line-height: 1.6;
+}
+
+.lab5-body code {
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.2rem;
+  background: var(--cui-tertiary-bg);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.lab5-aside {
+  font-size: 0.86rem;
+  color: var(--cui-secondary-color, #6c757d);
+  border-left: 3px solid var(--cui-border-color, #dcdfe4);
+  padding-left: 0.7rem;
+}
+
+.lab5-formulas,
+.lab5-bigformula {
+  margin: 0.7rem 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.4rem;
+  background: var(--cui-tertiary-bg);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* Two separate <code> blocks side by side, so this one is a flex row. */
+.lab5-formulas {
+  display: flex;
+  justify-content: center;
+  gap: 1.6rem;
+}
+
+/* This one is a single equation written as inline markup, so it must NOT be
+   a flex container. It used to share the rule above, which made every <sub>,
+   <sup> and loose text node its own flex item and had the 1.6rem gap shove
+   the exponents away from the symbols they belong to. */
+.lab5-bigformula {
+  display: block;
+  text-align: center;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: var(--lab5-accent);
+}
+
+/* Browsers set sub and sup to position: relative with a line-height of 0,
+   which is right inside a paragraph but leaves them looking detached at this
+   size. Tightening the offsets pulls them back onto their symbols. */
+.lab5-bigformula sub,
+.lab5-bigformula sup,
+.lab5-compare sup,
+.lab5-body sup,
+.lab5-body sub {
+  font-size: 0.68em;
+  line-height: 0;
+}
+
+.lab5-bigformula sup,
+.lab5-compare sup,
+.lab5-body sup {
+  vertical-align: 0.45em;
+}
+
+.lab5-bigformula sub,
+.lab5-body sub {
+  vertical-align: -0.2em;
+}
+
+.lab5-observe {
+  margin: 0.4rem 0;
+  padding-left: 1.2rem;
+  line-height: 1.75;
+}
+
+.lab5-rule {
+  margin: 0.6rem 0;
+  padding: 0.6rem 0.9rem;
+  border-left: 4px solid var(--lab4-defender);
+  background: color-mix(in srgb, var(--lab4-defender) 9%, var(--cui-body-bg));
+  border-radius: 0 0.4rem 0.4rem 0;
+  font-weight: 600;
+}
+
+.lab5-deltacases {
+  display: flex;
+  gap: 0.7rem;
+  margin: 0.7rem 0;
+}
+
+.lab5-deltacases > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.4rem;
+}
+
+.lab5-deltacases code {
+  font-weight: 800;
+  color: var(--lab5-accent);
+}
+
+.lab5-deltacases span {
+  font-size: 0.82rem;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+/* Two priced-out options side by side. Used twice, at delta 0.2 and 0.8, and
+   the whole lesson is that the same pair of boxes reads differently. */
+.lab5-compare {
+  display: flex;
+  gap: 0.7rem;
+  margin: 0.7rem 0;
+}
+
+.lab5-compare > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.45rem;
+  text-align: center;
+}
+
+.lab5-compare span {
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-compare strong {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--lab5-accent);
+}
+
+.lab5-compare em {
+  font-size: 0.72rem;
+  font-style: normal;
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+/* The definition list on the opening step. */
+.lab5-defs {
+  margin: 0.5rem 0;
+}
+
+.lab5-defs dt {
+  font-weight: 700;
+  color: var(--lab5-accent);
+}
+
+.lab5-defs dd {
+  margin: 0 0 0.45rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid color-mix(in srgb, var(--lab5-accent) 30%, transparent);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ----------------------------------------------------------- PHASE 2: bridge */
+
+.lab5-bridge {
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+}
+
+.lab5-bridge-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  width: min(46rem, 100%);
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.lab5-bridge-lead {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* The line that has to carry the student into free play, so it is the
+   largest thing on the screen and the only one in the lab accent. */
+.lab5-bridge-hook {
+  margin: 0.4rem 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.45;
+  color: var(--lab5-accent);
+}
+
+.lab5-bridge-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  width: 100%;
+  margin: 0.3rem 0;
+  text-align: left;
+}
+
+.lab5-bridge-lists section {
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.5rem;
+}
+
+.lab5-bridge-lists h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.lab5-bridge-lists .is-attacker {
+  border-top: 3px solid var(--lab4-attacker);
+}
+
+.lab5-bridge-lists .is-attacker h4 {
+  color: var(--lab4-attacker);
+}
+
+.lab5-bridge-lists .is-defender {
+  border-top: 3px solid var(--lab4-defender);
+}
+
+.lab5-bridge-lists .is-defender h4 {
+  color: var(--lab4-defender);
+}
+
+.lab5-bridge-lists ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.95rem;
+  line-height: 1.85;
+}
+
+.lab5-bridge-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-bridge-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+/* ------------------------------------------------------------------ tables */
+
+.lab5-matrix,
+.lab5-sequence,
+.lab5-history-sample {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6rem 0;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.86rem;
+}
+
+.lab5-matrix th,
+.lab5-matrix td,
+.lab5-sequence th,
+.lab5-sequence td,
+.lab5-history-sample th,
+.lab5-history-sample td {
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  padding: 0.3rem 0.45rem;
+  text-align: center;
+}
+
+.lab5-matrix thead th,
+.lab5-sequence thead th {
+  background: var(--cui-tertiary-bg);
+  font-weight: 700;
+}
+
+/* Row headers are the defender's choice, column headers the attacker's, so
+   each takes its own player color. The matrix is the one place in the lab
+   where both players' options are on screen at once. */
+.lab5-matrix tbody th {
+  background: color-mix(in srgb, var(--lab4-defender) 10%, var(--cui-body-bg));
+  color: var(--lab4-defender);
+  font-weight: 700;
+  text-align: right;
+}
+
+.lab5-matrix thead th:not(:first-child) {
+  color: var(--lab4-attacker);
+}
+
+.lab5-matrix td.is-marked {
+  background: color-mix(in srgb, var(--lab5-accent) 20%, var(--cui-body-bg));
+  font-weight: 800;
+  outline: 2px solid var(--lab5-accent);
+  outline-offset: -2px;
+}
+
+.lab5-sequence tr.is-caught td {
+  background: color-mix(in srgb, var(--lab4-defender) 12%, var(--cui-body-bg));
+  font-weight: 700;
+}
+
+.lab5-history-sample td {
+  color: var(--lab4-attacker);
+  font-weight: 700;
+}
+
+/* ============================================ PHASES 2 and 3: full-panel UI */
+
+.lab5-full {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  gap: 0.7rem;
+}
+
+.lab5-backlink {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--lab5-accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.lab5-backlink svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  vertical-align: -2px;
+  margin-right: 0.25rem;
+}
+
+/* ---------------------------------------------------------- PHASE 2: picker */
+
+.lab5-pickhead h3 {
+  margin: 0 0 0.3rem;
+  font-weight: 800;
+}
+
+.lab5-pickhead p {
+  margin: 0;
+  max-width: 62rem;
+  font-size: 0.92rem;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-suggest {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-suggest em {
+  margin-left: auto;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.lab5-chip {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--lab5-accent) 45%, transparent);
+  background: var(--cui-body-bg);
+  color: var(--lab5-accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.lab5-chip:hover {
+  background: color-mix(in srgb, var(--lab5-accent) 14%, var(--cui-body-bg));
+}
+
+/* Explored matchups stay marked so the sandbox has a sense of progress
+   without ever gating anything. */
+.lab5-chip.is-done {
+  background: var(--lab5-accent);
+  border-color: var(--lab5-accent);
+  color: #fff;
+}
+
+.lab5-picker {
+  display: grid;
+  grid-template-columns: 1fr minmax(13rem, 0.8fr) 1fr;
+  gap: 0 1.3rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 0.5rem;
+}
+
+.lab5-side,
+.lab5-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.lab5-side h4,
+.lab5-setup h4 {
+  margin: 0 0 0.1rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.lab5-side.is-attacker h4 {
+  color: var(--lab4-attacker);
+}
+
+.lab5-side.is-defender h4 {
+  color: var(--lab4-defender);
+  text-align: right;
+}
+
+.lab5-setup {
+  padding: 0 1.2rem;
+  border-left: 1px solid var(--cui-border-color, #dcdfe4);
+  border-right: 1px solid var(--cui-border-color, #dcdfe4);
+  align-items: stretch;
+}
+
+.lab5-setup h4 {
+  text-align: center;
+  color: var(--lab5-accent);
+}
+
+.lab5-setup label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-setup-note {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-setup-hint {
+  font-size: 0.74rem;
+  text-align: center;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-startpick {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.lab5-startpick button {
+  flex: 1;
+  padding: 0.35rem 0;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--cui-body-color);
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.3rem;
+  cursor: pointer;
+}
+
+.lab5-startpick button:hover {
+  border-color: var(--lab5-accent);
+}
+
+.lab5-startpick button.is-picked {
+  background: color-mix(in srgb, var(--lab5-accent) 16%, var(--cui-body-bg));
+  border-color: var(--lab5-accent);
+  color: var(--lab5-accent);
+}
+
+/* -- the strategy cards -- */
+
+.lab5-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  cursor: pointer;
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.45rem;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.lab5-card:hover {
+  border-color: color-mix(in srgb, var(--lab5-accent) 50%, transparent);
+}
+
+.lab5-card-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--cui-body-color);
+}
+
+.lab5-card-name i {
+  font-style: normal;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.6rem;
+  color: var(--cui-secondary-color, #6c757d);
+  background: var(--cui-tertiary-bg);
+}
+
+.lab5-card-blurb {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+/* The full rule appears only once a card is chosen. Showing all eleven at once
+   turns the screen into a wall of text and buries the choice. */
+.lab5-card-rule {
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+  border-top: 1px dashed var(--cui-border-color, #dcdfe4);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.lab5-side.is-attacker .lab5-card.is-picked {
+  border-color: var(--lab4-attacker);
+  border-width: 2px;
+  background: color-mix(in srgb, var(--lab4-attacker) 10%, var(--cui-body-bg));
+}
+
+.lab5-side.is-defender .lab5-card.is-picked {
+  border-color: var(--lab4-defender);
+  border-width: 2px;
+  background: color-mix(in srgb, var(--lab4-defender) 10%, var(--cui-body-bg));
+}
+
+/* ----------------------------------------------------------- PHASE 3: match */
+
+.lab5-matchhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--cui-border-color, #dcdfe4);
+}
+
+.lab5-tag {
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.lab5-tag.is-attacker {
+  color: var(--lab4-attacker);
+  background: color-mix(in srgb, var(--lab4-attacker) 13%, var(--cui-body-bg));
+}
+
+.lab5-tag.is-defender {
+  color: var(--lab4-defender);
+  background: color-mix(in srgb, var(--lab4-defender) 13%, var(--cui-body-bg));
+}
+
+.lab5-vs {
+  margin: 0 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-matchbody {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(13rem, 0.75fr) minmax(
+      16rem,
+      1fr
+    );
+  gap: 1.1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.lab5-arena,
+.lab5-log,
+.lab5-verdict {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.lab5-arena {
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.lab5-log,
+.lab5-verdict {
+  overflow-y: auto;
+  padding-left: 1.1rem;
+  border-left: 1px solid var(--cui-border-color, #dcdfe4);
+}
+
+.lab5-log .lab5-sequence {
+  margin: 0;
+}
+
+/* The row just revealed, so stepping through the match has a focus. */
+.lab5-sequence.is-log tr.is-live td {
+  outline: 2px solid var(--lab5-accent);
+  outline-offset: -2px;
+}
+
+.lab5-transport,
+.lab5-manual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Arrows and the round counter stay on one line; the button sits under them. */
+.lab5-transport-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.lab5-playout {
+  min-width: 11rem;
+  font-weight: 700;
+}
+
+/* Spent, but kept in place so the controls do not jump when the match ends. */
+.lab5-playout:disabled {
+  opacity: 0.45;
+}
+
+.lab5-manual {
+  gap: 0.35rem;
+}
+
+.lab5-manual p {
+  margin: 0;
+}
+
+.lab5-manual .lab5-startpick {
+  width: 14rem;
+}
+
+/* -- the verdict column -- */
+
+.lab5-scores {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.lab5-scores > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.45rem 0.3rem;
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.45rem;
+}
+
+.lab5-scores span {
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-scores strong {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.lab5-scores .is-primary {
+  border-color: var(--lab5-accent);
+  background: color-mix(in srgb, var(--lab5-accent) 9%, var(--cui-body-bg));
+}
+
+.lab5-scores .is-primary strong {
+  color: var(--lab5-accent);
+}
+
+.lab5-scores .is-better strong {
+  color: #2f9e44;
+}
+
+.lab5-scores .is-worse strong {
+  color: var(--lab4-attacker);
+}
+
+.lab5-deltabox {
+  margin-top: 0.7rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--cui-border-color, #dcdfe4);
+  border-radius: 0.45rem;
+}
+
+.lab5-deltahead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-deltahead strong {
+  font-size: 1.1rem;
+  color: var(--lab5-accent);
+}
+
+.lab5-deltanote {
+  margin: 0.4rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-rankhead {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--cui-secondary-color, #6c757d);
+}
+
+.lab5-rankhead b {
+  color: var(--lab4-attacker);
+}
+
+.lab5-ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+.lab5-ranking li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.4rem 2.8rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.18rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.74rem;
+}
+
+.lab5-rank-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The bar is what makes a reordering readable at a glance. Scaled against the
+   best score in the list rather than against an absolute, since the totals
+   range from about 11 at the bottom of the slider to about 270 at the top. */
+.lab5-rank-bar {
+  display: block;
+  height: 7px;
+  border-radius: 4px;
+  background: color-mix(
+    in srgb,
+    var(--cui-body-color, #212529) 11%,
+    transparent
+  );
+  overflow: hidden;
+}
+
+.lab5-rank-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: color-mix(
+    in srgb,
+    var(--cui-body-color, #212529) 32%,
+    transparent
+  );
+  /* Animated so a rank change reads as movement rather than as a redraw. */
+  transition: width 0.25s ease;
+}
+
+.lab5-rank-val {
+  text-align: right;
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+}
+
+.lab5-ranking li.is-current {
+  background: color-mix(in srgb, var(--lab5-accent) 13%, var(--cui-body-bg));
+  font-weight: 800;
+}
+
+.lab5-ranking li.is-current .lab5-rank-val {
+  color: var(--lab5-accent);
+}
+
+.lab5-ranking li.is-current .lab5-rank-bar i {
+  background: var(--lab5-accent);
+}
+
+/* Manual play has no row in the ranking, because its score covers a dozen
+   rounds rather than an infinite game. Shown apart so the two are not read
+   as comparable. */
+.lab5-rankmine {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.4rem 0 0;
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--cui-border-color, #dcdfe4);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.lab5-rankmine strong {
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--lab5-accent);
+}
+
+.lab5-note {
+  margin-top: 0.7rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--lab5-accent) 35%, transparent);
+  border-left: 4px solid var(--lab5-accent);
+  border-radius: 0 0.45rem 0.45rem 0;
+  background: color-mix(in srgb, var(--lab5-accent) 7%, var(--cui-body-bg));
+}
+
+.lab5-note h5 {
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--lab5-accent);
+}
+
+.lab5-note p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.lab5-lesson {
+  margin-top: 0.5rem !important;
+  padding-top: 0.5rem;
+  border-top: 1px dashed color-mix(in srgb, var(--lab5-accent) 35%, transparent);
+  font-weight: 600;
+}
+
+.lab5-lesson svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  color: var(--lab5-accent);
+  vertical-align: -2px;
+  margin-right: 0.35rem;
+}

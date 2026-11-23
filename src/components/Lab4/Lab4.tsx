@@ -7,7 +7,7 @@ import LabLayout from "../LabLayout";
 import { LabInternalLayout } from "../LabInternalLayout";
 
 const labProps = {
-  title: "Lab 4: Stackelberg Security Game",
+  title: "Stackelberg Security Game",
   objectives: [
     "Understand commitment: the leader moves first, in the open",
     "Compute expected utility under a mixed defense",

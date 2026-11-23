@@ -63,11 +63,15 @@
   color: var(--cui-secondary-color);
 }
 
-/* Lab 3 renders a 12-terminal game tree, which is far wider than a payoff
-   matrix. At the default 2rem inset the tree scales down to the point where
-   the edge labels stop being readable, so this lab takes the whole viewport.
+/* Two labs need more width than the default 2rem inset leaves them.
+   Lab 3 renders a 12-terminal game tree, which scales down far enough that
+   the edge labels stop being readable. Lab 5's free play puts eleven strategy
+   cards in two columns, and then the match puts the network, the round log
+   and the verdict side by side; at the inset size those three columns are
+   narrow enough to wrap.
    Add another selector here if a later lab needs the same treatment. */
-.lab-window-3 {
+.lab-window-3,
+.lab-window-5 {
   inset: 0;
   border-radius: 0;
 }

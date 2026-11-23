@@ -17,7 +17,7 @@ import "../styles/Sidebar.css";
 
 const Sidebar = () => {
   return (
-    <CSidebar className="border-end" unfoldable colorScheme="dark">
+    <CSidebar className="border-end app-sidebar" unfoldable colorScheme="dark">
       <CSidebarHeader className="border-bottom">
         <CSidebarBrand className="d-flex align-items-center gap-2">
           <img
@@ -42,7 +42,10 @@ const Sidebar = () => {
           // and the active bar both read from one value, and so the color
           // stays defined only in data/labs.ts.
           const accent = { "--lab-accent": lab.accent } as CSSProperties;
-          const label = `Lab ${lab.number}`;
+          // The full title rather than a bare "Lab 3". The number alone makes
+          // the student remember which lab was which; the subject does not.
+          // The unbuilt labs have no subject yet, so those stay as "Lab 6".
+          const label = lab.title;
           // Each lab's own icon rather than a generic bullet. This matters most
           // when the sidebar is collapsed, where labels are hidden and seven
           // identical bullets gave nothing to navigate by.

@@ -7,7 +7,7 @@ import "../../styles/LabWindow.css";
 import type { LabResult } from "../../types/labResult";
 
 const labProps = {
-  title: "Lab 1: Zero-Sum Game (Normal Form)",
+  title: "Zero-Sum Game (Normal Form)",
   objectives: [
     "Find a player's best response to an opponent's strategy.",
     "Identify pure Nash equilibrium",

@@ -42,9 +42,328 @@ Lab 1: Best Response, Pure Nash Equilibrium, Mixed Nash Equilibrium, Maxmin, Min
 Lab 2: Best Response, Pure Nash Equilibrium, Mixed Nash Equilibrium, Maxmin, MinMax (same concepts as Lab 1, applied to a non-zero-sum game)
 Lab 3: Extensive-Form Games, Sequential Decision-Making, Best Response, Backward Induction, Subgame Perfect Nash Equilibrium (SPNE), Perfect Information
 Lab 4: Stackelberg Security Games, Commitment, Leader/Follower, Mixed Defense Strategies, Expected Utility, Best Response, Strong Stackelberg Equilibrium
-Lab 5:
+Lab 5: Repeated Games, Attack Patterns, Trigger Strategies, Discount Factor, Long-Term Value of Adaptation, Exploitability
 Lab 6:
 Lab 7:
+
+## Lab5 info
+
+Lab 5 is about **repeated games**. The network, the constants and both payoff
+equations are *identical to Lab 4's*, and the only thing that changes is that
+the same two players meet round after round and both of them remember.
+
+That continuity is load-bearing rather than cosmetic, so
+[repeated.ts](src/components/Lab5/repeated.ts) imports `EXAMPLE_GAME`,
+`attackerPayoff`, `defenderPayoff` and `equalizingCoverage` from Lab 4 instead
+of re-declaring them the way Lab 4 did with Lab 3. The capstone of the lab is
+that Lab 4's optimal mix is exactly the defense a learning attacker cannot
+read, and that claim is only true if it is literally the same numbers.
+
+### The game, per round
+
+The defender places one honeypot on one server; the attacker hits one server.
+With three servers that is nine outcomes, so the lab goes **back to a payoff
+matrix**, which Labs 3 and 4 had left behind:
+
+| | A -> S1 | A -> S2 | A -> S3 |
+|---|---|---|---|
+| **H at S1** | (17, -2) | (11, 5) | (13, 3) |
+| **H at S2** | (9, 6) | (17, -1) | (13, 3) |
+| **H at S3** | (9, 6) | (11, 5) | (17, -1) |
+
+The diagonal is always `(SUM(V) - Ch, -Cei)`: caught, no damage, and the
+attacker paid their exploit cost for nothing. Every cell is computed from the
+two equations, never typed in.
+
+### The discount factor
+
+Written **delta**, matching the whiteboard (not gamma, which is the
+reinforcement-learning convention; the symbol and the word have to agree or
+the prose contradicts the formula).
+
+`Ud = Ud1 + delta*Ud2 + delta^2*Ud3 + ...`, and for a flat stream that
+collapses to `Ud / (1 - delta)`.
+
+Every number on the whiteboard is reproduced exactly:
+
+| | delta = 0.2 | delta = 0.8 |
+|---|---|---|
+| Static (always S2) | 11.25 | 45.00 |
+| Trigger | 11.65 | 70.60 |
+
+**The punchline the board gestures at but never writes down.** Subtract the two
+closed forms and nearly everything cancels:
+
+`value of adapting = 8*delta^2 / (1 - delta)`
+
+0.40 at delta 0.2, and 25.60 at delta 0.8. Same defender, same attacker, same
+network, and adaptation became 64x more valuable purely because the horizon
+moved. The Example's last step is built on that one line.
+
+### The eleven strategies
+
+Five attackers and six defenses, all in `repeated.ts`. Each is a pure function
+of the history. Ties everywhere resolve to the **lowest server index**, stated
+once and used consistently so a seed replays identically.
+
+Attackers: Greedy (`argmax(V - C)`, note **payoff** not value, which diverge
+once an exploit cost is high enough), Target Rotation (fixed cycle, defaults to
+the board's S1/S3), Reactive Best Response (assume the defender holds, dodge),
+Frequency Avoidance (maximize `(1 - f)*V - C` from observed defense rates), and
+Randomized Attack (uniform).
+
+Defenses: Static (student picks the server), Trigger (the board's rule: same
+server twice consecutively, then protect it, otherwise **hold position**, which
+is what produces the 9, 9, 17, 17 ladder rather than an oscillation), Reactive
+Best Response (protect last round's target), Frequency Response (protect
+`argmax(f * V)`), Randomized Defense (draw from Lab 4's optimal mix), and Play
+It Yourself.
+
+### What the grid actually teaches
+
+Measured per-round `Ud`, settled:
+
+| | Static(S2) | Static(S1) | Trigger | Reactive | Frequency | Randomized |
+|---|---|---|---|---|---|---|
+| **Greedy** | 9.00 | **17.00** | 17.00 | 17.00 | 17.00 | 12.75 |
+| **Rotation** | 11.00 | 15.00 | **11.00** | **11.00, never catches** | 15.00 | 13.03 |
+| **Reactive** | 9.00 | chase | 12.33 | 13.50 | 12.14 | 12.77 |
+| **Frequency** | 9.00 | ~11 | 13.67 | 14.47 | 9.00 | 13.22 |
+| **Random** | 12.99 | 13.75 | 13.22 | 13.11 | 13.56 | 13.25 |
+
+Six things that fall out of it, and five are worth teaching:
+
+1. **Static is not weak, mis-specified static is weak.** On S1 against a greedy
+   attacker it is a perfect game at 17. The board parks it on S2 deliberately,
+   for drama, which is why the student gets to choose the start server.
+2. **Reactive Best Response is the worst possible answer to rotation.** It
+   guards where they were; they have already moved. Catch rate **0%, forever**,
+   perfectly anti-correlated. The most dramatic cell in the grid.
+3. **The honest fix for rotation, which the board does not give.** The discount
+   factor is not a defense, it prices one. The real answers are frequency
+   counting (15.00 versus the trigger rule's 11.00) and longer memory.
+4. **Against a random attacker every clever defense collapses** to within a
+   point of plain static on the most valuable server. Adaptation is worth
+   exactly as much as the opponent's predictability.
+5. **Adaptation can lose.** A reactive attacker beats the trigger rule down to
+   12.33, which is *below* what simply randomizing (12.77) would have paid. Any
+   deterministic rule is itself a pattern, and the moment the defense becomes
+   readable, adaptation stops being an edge and becomes a handle.
+6. Greedy against Trigger, Reactive and Frequency all converge to 17; three
+   roads to the same place. Not harmful, just not separately interesting.
+
+### The capstone
+
+The Frequency Avoidance attacker maximizes `(1 - f_i)*V_i - C_i`. That is
+algebraically **Lab 4's `EUa(Si) = (Vi - Ci) - Vi*xi`** with the observed
+frequency standing in for the committed probability. Set the defense
+frequencies to Lab 4's optimal mix `(44.23%, 42.31%, 13.46%)`:
+
+```
+S1:  (1 - 0.4423)*8 - 2  =  2.4615
+S2:  (1 - 0.4231)*6 - 1  =  2.4615
+S3:  (1 - 0.1346)*4 - 1  =  2.4615
+```
+
+All identical, and that is `32/13`, the exact `v` solved for in Lab 4
+(verified: spread 4.4e-16). So the attacker's entire learning apparatus returns
+nothing, because there is no "elsewhere" to go. Lab 5 ends by showing that the
+unexploitable floor is the thing the student already computed last lab, and
+*why* it is the floor rather than being told that it is.
+
+The mix also guarantees a floor of **12.54** that no attacker behavior can
+breach (checked against all five over 4000 rounds) and caps at 13.54. It never
+exploits, which is why three of the five attacker rows beat it.
+
+### Structure: three phases, each taking the whole screen
+
+Deliberately unlike Labs 1 to 4, which are step-next-step throughout.
+
+1. **Walkthrough**, 3 pages and 13 steps in the familiar two-column frame:
+   the matrix and the one-shot best response, then the discount factor, then
+   the board's ladder priced at both deltas ending on `8*delta^2/(1-delta)`.
+2. **Picker**: the network disappears entirely and the panel becomes eleven
+   strategy cards, attacker left in red, defender right in blue, with the
+   start-server control between them. A card shows its full rule only once
+   chosen; eleven rules at once is a wall of text. Six suggested matchups are
+   numbered chips that set both sides, and explored matchups stay marked.
+3. **Match**: network with the honeypot and the attack drawn, the round log
+   building beside it, and the verdict column with the delta slider. Stepped a
+   round at a time, or played out.
+
+`.lab-window-5` joins `.lab-window-3` in taking the full viewport, since three
+columns do not fit at the default inset.
+
+### Simulated depth versus displayed depth
+
+`SIM_ROUNDS = 200`, `DISPLAY_ROUNDS = 12`. These differ on purpose.
+
+The infinite tail is summed in closed form by detecting the repeating cycle in
+the move sequence (on moves, not payoffs, since every catch pays 17 and would
+produce false positives). Adaptive-versus-adaptive matchups settle into cycles
+as long as 6 or 7 rounds, and detection needs three repeats, so a 12-round
+match cannot recognise its own cycle and falls back to estimating. Measured:
+reactive vs trigger at delta 0.9 was off by 0.99 against a 3000-round brute
+force. At 60 rounds the deterministic matchups became exact but the stochastic
+ones were still up to 1.77% out at delta 0.95, where a 60-round tail is 46% of
+the total. At 200 rounds the worst relative error across all 30 matchups and 3
+deltas is **0.0014%**. Delta is capped at 0.95 for the same reason.
+
+The verdict's headline is the **settled** rate, not the mean of the rows on
+screen: trigger against a greedy attacker reads 17 while the table still shows
+two rounds of 9. The opening cost shows up in the discounted total instead, and
+the label says "settled" so the two numbers do not look like they disagree.
+
+### Verification
+
+Same discipline as Labs 3 and 4, run offline via esbuild into Node:
+
+- The whiteboard matrix, the ladder, and all four discounted totals reproduce
+  exactly, and the gap equals `8*delta^2/(1-delta)` to the cent.
+- All 30 matchups: no non-finite numbers, `Ud = 17 - D` holds in every round,
+  no round where a catch did damage, and all 30 replay identically from a seed.
+- Tail accuracy: 0.0014% worst case over 30 matchups x 3 deltas against a
+  9000-round brute force.
+- 90,000 matches over 3,000 randomly generated games: zero problems.
+- 270 debriefs (every matchup x every start server x three deltas): no
+  "undefined", "NaN" or "[object" ever reaches the screen, 28 distinct titles.
+- Manual play honors every supplied move and scores at every partial length
+  from 1 to 12 rounds.
+- Delta sweep found three genuine ranking flips, the best being **greedy vs
+  trigger/randomized at delta ~0.70**: below it randomizing wins because the
+  trigger rule's two learning rounds dominate, above it the trigger wins. The
+  slider makes that swap something the student can feel.
+
+### Practice: three sections of play and one of concepts
+
+The student is **always the defender**. The attacker is played by the machine,
+and the only question that looks at the attacker's side at all is "name their
+strategy", which is a reading exercise rather than a turn.
+
+**14 questions, 100 points**, in
+[practiceStages.ts](src/components/Lab5/practiceStages.ts). Four blocks:
+
+| block | what it is | pts |
+|---|---|---|
+| Section 1 | Greedy attacker, you run Trigger. Execute the strategy, name the attacker, what made the two learning rounds cost anything | 20 |
+| Section 2 | Rotating attacker, same strategy. It never fires: execute (hold), name them, why it failed, what beats them | 32 |
+| Section 3 | A learning attacker, you run Frequency Response. Execute, name them, pick the counter | 26 |
+| Section 4 | Three concept questions: when adapting fails, what a low delta means for how you play, and why a static defense reveals less | 22 |
+
+Four question kinds, one layout. Every question is a round table plus a prompt
+plus one of four controls (server picker, strategy picker, multiple choice,
+number). The three columns are the same ones the Example's match screen uses,
+so a student who played free play already knows how to read the screen.
+
+**Rounds accumulate inside a section and it plays out regardless of the
+answer**, so a wrong answer never derails the rest. Answers are final once
+locked in, for the same reason Lab 3's are: the next round reveals what
+actually happened, so allowing a change would be allowing a correction.
+
+**Vocabulary**: the lab says *strategy*, never *rule*, because the Example
+defines a strategy as a rule that turns history into a move and prose that
+alternates between the two words invites the reader to hunt for a distinction
+that is not there. Blocks are *sections*, not engagements.
+
+[StrategyPeek.tsx](src/components/Lab5/StrategyPeek.tsx) is a reference panel
+behind a button in the top left, modelled on Lab 3's `NetworkPeek` so a
+student who met that one already knows how it behaves. It lists all eleven
+strategies with what each does, read straight from `repeated.ts` so the
+reference, the free-play cards and the simulator cannot disagree. It exists so
+the section header can be one sentence (`You are the defender. Your honeypot
+starts on S2 and you are running Trigger Defense.`) instead of restating the
+current strategy's definition every time, and so no question is a memory test.
+
+**Two questions were cut as busywork**: "how many rounds do you expect at
+delta 0.8" and "what is a flat 9 worth at delta 0.6". Both test whether a
+student can evaluate `1/(1 - delta)`, which the Example already does in front
+of them and which says nothing about whether they understand what delta is
+for. A third, on Lab 4's mix leaving a learner indifferent, went with them.
+The replacements ask what a horizon implies about how to play.
+
+### Why the scenarios need a gate
+
+[practiceScenarios.ts](src/components/Lab5/practiceScenarios.ts) exists
+because a question built from a randomly drawn matchup is very often
+unanswerable, and the only way to know is to simulate every candidate.
+
+Measured over every deterministic matchup: "name the strategy pair behind this
+history" has a unique answer only **25 times out of 34**, and *showing more
+rounds does not help*. At 8, 12 and 15 rounds the scores are 23, 25 and 25,
+because once a matchup settles into its cycle every further round carries no
+new information. The collisions are structural:
+
+```
+greedy/static == greedy/trigger == greedy/reactive == greedy/frequency
+rotation/static == rotation/trigger == rotation/frequency
+reactive/static == frequency/static
+```
+
+The first is the start-server case: park the honeypot where a greedy attacker
+was going anyway and every defense sits still forever. The second is a trigger
+rule whose condition never fires, indistinguishable from never having a rule.
+
+**The third is worth teaching rather than hiding.** Asking for only one side
+resolves nearly everything: identifying the attacker is unambiguous against
+Trigger, Reactive, Frequency and Randomized, and ambiguous **only against
+Static**, in 3 cases. Against a defense that never moves, three different
+attackers behave identically, because two of them are reacting to a signal
+that is not there. You can only identify an adaptive opponent if your own
+behaviour varies enough to provoke them.
+
+`consistentWith` returns every deterministic pair reproducing a history and
+`identifies` is the gate. There are 116 usable "name the attacker" scenarios
+and 21 to 27 per defense for "name the defense".
+
+### Three gate findings that changed the questions
+
+1. **A strategy must be shown its own history.** The first version generated the
+   rounds with one defense and then told the student they were running
+   another, producing "you are running Static Defense" above a table of the
+   honeypot moving every round. `describeUnusableExecute` now rejects it.
+   With coherent histories the hold/move split is Static 50/0, Trigger 19/8,
+   Reactive 0/30, Frequency 18/9, so Trigger and Frequency carry the teaching.
+2. **Section 3's "name the attacker" needs seven rounds, not six.** At six
+   the history is equally consistent with Reactive Best Response. The gate
+   caught it.
+3. **The counter questions only work at some horizons.** Against a Frequency
+   attacker at delta 0.8 the top two defenses are separated by **0.001**,
+   which would mark a student wrong for a distinction nothing on screen could
+   reveal. `describeUnusableCounter` requires a margin of 1.5, so Section 2
+   asks at delta 0.8 (margin 6.40) and Section 3 at delta 0.9 (margin 6.79).
+
+### Two answers that are not the obvious ones
+
+**Section 3's execute question is a value-weighted tie-break.** Four rounds
+in, the attacks split 2 and 2, so counting hits gives no answer at all. Only
+weighting by server value breaks it: S1 has cost 2 x 8 = 16 against S2's
+2 x 6 = 12. A student who counts gets a tie; a student who runs the actual
+rule gets S1.
+
+**Against the learning attacker, randomizing loses.** Reactive Best Response
+scores 140.70 and Randomized Defense 133.91. An earlier draft of this block
+had "randomize" as the capstone answer, which is simply false in this game:
+the Example's claim is that Lab 4's mix leaves a learner *indifferent*, not
+that it beats them. Indifference is unexploitability, not optimality, and
+those are different. The capstone is therefore a concept question about what
+indifference does to a counting attacker, and the counter question has the
+true answer.
+
+### Verification
+
+- The stage list throws at module load if any gate fails or the points do not
+  total 100, so a retuned game stops the lab rather than reaching a student.
+- All three execute answers re-derived independently from the engine agree
+  with the stage list.
+- UI invariants per question: controls have the data they need, `revealTo`
+  never exceeds the section or moves backwards inside a block, a "where
+  does it go" question always has a real next round, and its answer is never
+  already visible in the revealed rows.
+- Every option on every question scored individually: each one is worth
+  exactly its own points and nothing else. Perfect run 100, blank run 0.
+- Number questions accept the exact answer and the tolerance band, and reject
+  off-by-one, double, empty and non-numeric.
+- No "undefined", "NaN" or "[object" in any prompt, hint or explanation.
 
 ## Lab1 info
 

@@ -143,6 +143,52 @@
   fill: var(--lab4-attacker);
 }
 
+/* ------------------------------------------------- Lab 5: a placed honeypot --- */
+/*
+ * Lab 4 never draws a honeypot position: the whole point there is that the
+ * attacker sees probabilities and not placements. Lab 5 replays round by round
+ * with the placement revealed, so these states exist only for that lab. They
+ * live here because this is where ServerNetwork's styles live, and splitting
+ * one component's CSS across two files is how the two halves drift apart.
+ */
+
+/* Dashed, so a placement never reads as the same thing as the solid accent
+   ring that means "the text is talking about this server". */
+.lab4-server.is-defended rect {
+  stroke: var(--lab4-defender);
+  stroke-width: 3.5;
+  stroke-dasharray: 7 4;
+}
+
+.lab4-server-pot {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-anchor: middle;
+  fill: var(--lab4-defender);
+}
+
+/* A catch is the only outcome where both players are on the same server, so it
+   gets its own treatment rather than one color winning over the other: the box
+   fills with the defender's color and the attacker's edge stops short of a
+   win. Drawn after the attacker rules above so it takes precedence. */
+.lab4-server.is-caught rect {
+  fill: color-mix(in srgb, var(--lab4-defender) 18%, var(--cui-tertiary-bg, #f1f3f5));
+  stroke: var(--lab4-defender);
+  stroke-width: 4;
+  stroke-dasharray: none;
+}
+
+.lab4-edge.is-caught line {
+  stroke: var(--lab4-defender);
+  stroke-dasharray: 6 5;
+}
+
+.lab4-server-hit.is-caught {
+  fill: var(--lab4-defender);
+}
+
 /* Quiet by design: it explains a notation, it is not part of the diagram. */
 .lab4-network-caption {
   font-size: 11.5px;
